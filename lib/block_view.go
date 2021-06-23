@@ -6643,7 +6643,6 @@ func (bav *UtxoView) GetDiamondSendersForPostHash(postHash *BlockHash) (_pkidToD
 	dbPrefix = append(dbPrefix, postHash[:]...)
 	keysFound, _ := EnumerateKeysForPrefix(handle, dbPrefix)
 
-
 	diamondPostEntry := bav.GetPostEntryForPostHash(postHash)
 	receiverPKIDEntry := bav.GetPKIDForPublicKey(diamondPostEntry.PosterPublicKey)
 
@@ -7341,6 +7340,8 @@ func (bav *UtxoView) _flushDiamondEntriesToDbWithTxn(txn *badger.Txn) error {
 }
 
 func (bav *UtxoView) _flushPostEntriesToDbWithTxn(txn *badger.Txn) error {
+	sdb := SqliteOpenDB()
+	SqliteCreateSchema(sdb)
 	// TODO(DELETEME): Remove flush logging after debugging MarkBlockInvalid bug.
 	glog.Debugf("_flushPostEntriesToDbWithTxn: flushing %d mappings", len(bav.PostHashToPostEntry))
 
@@ -7360,7 +7361,7 @@ func (bav *UtxoView) _flushPostEntriesToDbWithTxn(txn *badger.Txn) error {
 
 		// Delete the existing mappings in the db for this PostHash. They will be re-added
 		// if the corresponding entry in memory has isDeleted=false.
-		if err := DBDeletePostEntryMappingsWithTxn(txn, &postHash, bav.Params); err != nil {
+		if err := DBDeletePostEntryMappingsWithTxn(sdb, txn, &postHash, bav.Params); err != nil {
 			return errors.Wrapf(
 				err, "_flushPostEntriesToDbWithTxn: Problem deleting mappings "+
 					"for PostHash: %v: ", postHash)

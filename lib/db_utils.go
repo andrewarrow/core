@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"crypto/rand"
+	"database/sql"
 	"encoding/binary"
 	"encoding/gob"
 	"encoding/hex"
@@ -188,7 +189,7 @@ var (
 	//  <prefix, DiamondReceiverPKID [33]byte, DiamondSenderPKID [33]byte, posthash> -> <gob-encoded DiamondEntry>
 	//  <prefix, DiamondSenderPKID [33]byte, DiamondReceiverPKID [33]byte, posthash> -> <gob-encoded DiamondEntry>
 	_PrefixDiamondReceiverPKIDDiamondSenderPKIDPostHash = []byte{41}
-	_PrefixDiamondSenderPKIDDiamondReceiverPKIDPostHash  = []byte{43}
+	_PrefixDiamondSenderPKIDDiamondReceiverPKIDPostHash = []byte{43}
 
 	// Public keys that have been restricted from signing blocks.
 	// <prefix, ForbiddenPublicKey [33]byte> -> <>
@@ -3440,8 +3441,9 @@ func DBDeletePostEntryMappings(
 }
 
 func DBPutPostEntryMappingsWithTxn(
-	txn *badger.Txn, postEntry *PostEntry, params *BitCloutParams) error {
+	sdb *sql.DB, txn *badger.Txn, postEntry *PostEntry, params *BitCloutParams) error {
 
+	SqliteInsertPostEntry(sdb, postEntry)
 	postDataBuf := bytes.NewBuffer([]byte{})
 	gob.NewEncoder(postDataBuf).Encode(postEntry)
 
@@ -3549,10 +3551,10 @@ func DBPutPostEntryMappingsWithTxn(
 	return nil
 }
 
-func DBPutPostEntryMappings(handle *badger.DB, postEntry *PostEntry, params *BitCloutParams) error {
+func DBPutPostEntryMappings(sdb *sql.DB, handle *badger.DB, postEntry *PostEntry, params *BitCloutParams) error {
 
 	return handle.Update(func(txn *badger.Txn) error {
-		return DBPutPostEntryMappingsWithTxn(txn, postEntry, params)
+		return DBPutPostEntryMappingsWithTxn(sdb, txn, postEntry, params)
 	})
 }
 
