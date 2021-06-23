@@ -292,6 +292,7 @@ func NewServer(
 	_blockCypherAPIKey string,
 	_runReadOnlyUtxoViewUpdater bool,
 	_dataDir string,
+	_sqlite string,
 	_mempoolDumpDir string,
 	_disableNetworking bool,
 	_readOnlyMode bool,

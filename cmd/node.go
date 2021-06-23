@@ -4,12 +4,13 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/DataDog/datadog-go/statsd"
-	"github.com/bitclout/core/lib"
 	"net"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/bitclout/core/lib"
 
 	"github.com/btcsuite/btcd/addrmgr"
 	"github.com/btcsuite/btcd/wire"
@@ -22,11 +23,11 @@ import (
 )
 
 type Node struct {
-	Server     *lib.Server
-	chainDB    *badger.DB
-	TXIndex    *lib.TXIndex
-	Params     *lib.BitCloutParams
-	Config     *Config
+	Server  *lib.Server
+	chainDB *badger.DB
+	TXIndex *lib.TXIndex
+	Params  *lib.BitCloutParams
+	Config  *Config
 }
 
 func NewNode(config *Config) *Node {
@@ -134,6 +135,7 @@ func (node *Node) Start() {
 		node.Config.BlockCypherAPIKey,
 		true,
 		node.Config.DataDirectory,
+		node.Config.Sqlite,
 		node.Config.MempoolDumpDirectory,
 		node.Config.DisableNetworking,
 		node.Config.ReadOnlyMode,
@@ -162,7 +164,7 @@ func (node *Node) Start() {
 	}
 }
 
-func (node* Node) Stop() {
+func (node *Node) Stop() {
 	node.Server.Stop()
 	node.chainDB.Close()
 	node.TXIndex.Stop()
