@@ -5,6 +5,16 @@ import (
 )
 
 func main() {
+	SeedBalances := []*BitCloutOutput{
+		{
+			PublicKey:   []byte{1, 2, 3},
+			AmountNanos: uint64(177204235393800),
+		},
+		{
+			PublicKey:   []byte{4, 5, 6},
+			AmountNanos: uint64(2662447206500),
+		},
+	}
 	aMerkleRoot := BlockHash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
@@ -17,7 +27,15 @@ func main() {
 			TstampSecs:            uint64(1610948544),
 			Height:                uint64(0),
 			Nonce:                 uint64(0),
-		}}
+		},
+		Txns: []*MsgBitCloutTxn{
+			{
+				TxInputs:  []*BitCloutInput{},
+				TxOutputs: SeedBalances,
+				TxnMeta:   "They came here, to the New World. World 2.0, version 1776.",
+			},
+		},
+	}
 	fmt.Println("gb", gb)
 }
 
@@ -37,13 +55,15 @@ type BitCloutOutput struct {
 	AmountNanos uint64
 }
 
+type BitCloutInput UtxoKey
+
 type UtxoKey struct {
 	TxID  BlockHash
 	Index uint32
 }
 
 type MsgBitCloutTxn struct {
-	TxInputs    []*UtxoKey
+	TxInputs    []*BitCloutInput
 	TxOutputs   []*BitCloutOutput
 	TxnMeta     string //BitCloutTxnMetadata
 	PublicKey   []byte
