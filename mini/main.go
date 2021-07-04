@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 )
@@ -50,6 +51,17 @@ func main() {
 		11111,     // Status
 	)
 	fmt.Println("gn", genesisNode)
+	PutBestHash(blockHash)
+	PutBlock(&gb)
+}
+
+func PutBestHash(bh *BlockHash) {
+	// prefix 3
+}
+
+func PutBlock(bitcloutBlock *MsgBitCloutBlock) {
+	b, _ := json.Marshal(bitcloutBlock.Header)
+	fmt.Println(string(b))
 }
 
 type MsgBitCloutBlock struct {
