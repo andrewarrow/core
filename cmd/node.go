@@ -4,12 +4,13 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/DataDog/datadog-go/statsd"
-	"github.com/bitclout/core/lib"
 	"net"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/bitclout/core/lib"
 
 	"github.com/btcsuite/btcd/addrmgr"
 	"github.com/btcsuite/btcd/wire"
@@ -22,11 +23,11 @@ import (
 )
 
 type Node struct {
-	Server     *lib.Server
-	chainDB    *badger.DB
-	TXIndex    *lib.TXIndex
-	Params     *lib.BitCloutParams
-	Config     *Config
+	Server  *lib.Server
+	chainDB *badger.DB
+	TXIndex *lib.TXIndex
+	Params  *lib.BitCloutParams
+	Config  *Config
 }
 
 func NewNode(config *Config) *Node {
@@ -38,6 +39,74 @@ func NewNode(config *Config) *Node {
 }
 
 func (node *Node) Start() {
+	fmt.Println("bitcloutAddrMgr")
+	bitcloutAddrMgr := addrmgr.New(node.Config.DataDirectory, net.LookupIP)
+	bitcloutAddrMgr.Start()
+
+	listeningAddrs, listeners := getAddrsToListenOn(node.Config.ProtocolPort)
+	fmt.Printf("listeningAddrs %d, listeners %d\n", len(listeningAddrs), len(listeners))
+
+	for _, addr := range listeningAddrs {
+		netAddr := wire.NewNetAddress(&addr, 0)
+		_ = bitcloutAddrMgr.AddLocalAddress(netAddr, addrmgr.BoundPrio)
+	}
+
+	if len(node.Config.ConnectIPs) == 0 {
+		fmt.Printf("node.Config.AddIPs %d\n", len(node.Config.AddIPs))
+		for _, host := range node.Config.AddIPs {
+			addIPsForHost(bitcloutAddrMgr, host, node.Params)
+		}
+
+		fmt.Printf("node.Params.DNSSeeds %d\n", len(node.Params.DNSSeeds))
+		for _, host := range node.Params.DNSSeeds {
+			addIPsForHost(bitcloutAddrMgr, host, node.Params)
+		}
+
+		if !node.Config.PrivateMode {
+			go addSeedAddrsFromPrefixes(bitcloutAddrMgr, node.Params)
+		}
+	}
+
+	var err error
+	node.Server, err = lib.NewServer(
+		node.Params,
+		listeners,
+		bitcloutAddrMgr,
+		node.Config.ConnectIPs,
+		node.chainDB,
+		node.Config.TargetOutboundPeers,
+		node.Config.MaxInboundPeers,
+		node.Config.MinerPublicKeys,
+		node.Config.NumMiningThreads,
+		node.Config.OneInboundPerIp,
+		node.Config.RateLimitFeerate,
+		node.Config.MinFeerate,
+		node.Config.StallTimeoutSeconds,
+		"",
+		node.Config.MaxBlockTemplatesCache,
+		node.Config.MinBlockUpdateInterval,
+		node.Config.BlockCypherAPIKey,
+		true,
+		node.Config.DataDirectory,
+		node.Config.MempoolDumpDirectory,
+		node.Config.DisableNetworking,
+		node.Config.ReadOnlyMode,
+		node.Config.IgnoreInboundInvs,
+		node.Config.BitcoinConnectPeer,
+		node.Config.IgnoreUnminedBitcoin,
+		nil,
+		node.Config.BlockProducerSeed,
+		node.Config.TrustedBlockProducerPublicKeys,
+		node.Config.TrustedBlockProducerStartHeight,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	node.Server.Start()
+}
+
+func (node *Node) OldStart() {
 	// TODO: Replace glog with logrus so we can also get rid of flag library
 	flag.Parse()
 	flag.Set("log_dir", node.Config.LogDirectory)
@@ -162,7 +231,7 @@ func (node *Node) Start() {
 	}
 }
 
-func (node* Node) Stop() {
+func (node *Node) Stop() {
 	node.Server.Stop()
 	node.chainDB.Close()
 	node.TXIndex.Stop()
