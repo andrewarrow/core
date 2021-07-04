@@ -5,7 +5,19 @@ import (
 )
 
 func main() {
-	gb := MsgBitCloutBlock{}
+	aMerkleRoot := BlockHash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+		1, 2}
+	gb := MsgBitCloutBlock{
+		Header: &MsgBitCloutHeader{
+			Version:               0,
+			PrevBlockHash:         &BlockHash{},
+			TransactionMerkleRoot: &aMerkleRoot,
+			TstampSecs:            uint64(1610948544),
+			Height:                uint64(0),
+			Nonce:                 uint64(0),
+		}}
 	fmt.Println("gb", gb)
 }
 
