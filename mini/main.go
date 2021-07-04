@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/big"
 )
 
 func main() {
@@ -37,6 +38,18 @@ func main() {
 		},
 	}
 	fmt.Println("gb", gb)
+	diffTarget := &aMerkleRoot
+	blockHash := &aMerkleRoot
+	genesisNode := NewBlockNode(
+		nil, // Parent
+		blockHash,
+		0, // Height
+		diffTarget,
+		big.NewInt(1),
+		gb.Header, // Header
+		11111,     // Status
+	)
+	fmt.Println("gn", genesisNode)
 }
 
 type MsgBitCloutBlock struct {
@@ -82,4 +95,36 @@ type MsgBitCloutHeader struct {
 	Height                uint64
 	Nonce                 uint64
 	ExtraNonce            uint64
+}
+
+type BlockStatus uint32
+
+type BlockNode struct {
+	Parent           *BlockNode
+	Hash             *BlockHash
+	Height           uint32
+	DifficultyTarget *BlockHash
+	CumWork          *big.Int
+	Header           *MsgBitCloutHeader
+	Status           BlockStatus
+}
+
+func NewBlockNode(
+	parent *BlockNode,
+	hash *BlockHash,
+	height uint32,
+	difficultyTarget *BlockHash,
+	cumWork *big.Int,
+	header *MsgBitCloutHeader,
+	status BlockStatus) *BlockNode {
+
+	return &BlockNode{
+		Parent:           parent,
+		Hash:             hash,
+		Height:           height,
+		DifficultyTarget: difficultyTarget,
+		CumWork:          cumWork,
+		Header:           header,
+		Status:           status,
+	}
 }
