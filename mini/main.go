@@ -9,11 +9,11 @@ import (
 func main() {
 	SeedBalances := []*BitCloutOutput{
 		{
-			PublicKey:   []byte{1, 2, 3},
+			PublicKey:   []byte{1, 2, 3, 4, 5},
 			AmountNanos: uint64(177204235393800),
 		},
 		{
-			PublicKey:   []byte{4, 5, 6},
+			PublicKey:   []byte{6, 7, 8, 9, 10},
 			AmountNanos: uint64(2662447206500),
 		},
 	}
@@ -57,11 +57,22 @@ func main() {
 
 func PutBestHash(bh *BlockHash) {
 	// prefix 3
+	fmt.Println("PutBestHash")
+	key := "3"
+	b, _ := json.Marshal(bh)
+	value := string(b)
+	fmt.Println(key)
+	fmt.Println(value)
 }
 
 func PutBlock(bitcloutBlock *MsgBitCloutBlock) {
 	b, _ := json.Marshal(bitcloutBlock.Header)
-	fmt.Println(string(b))
+	key := string(b)
+	b, _ = json.Marshal(bitcloutBlock)
+	value := string(b)
+	fmt.Println("PutBlock")
+	fmt.Println(key)
+	fmt.Println(value)
 }
 
 type MsgBitCloutBlock struct {
