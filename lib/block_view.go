@@ -7557,76 +7557,60 @@ func (bav *UtxoView) _flushBalanceEntriesToDbWithTxn(txn *badger.Txn) error {
 }
 
 func (bav *UtxoView) FlushToDbWithTxn(txn *badger.Txn) error {
-	// Flush the utxos to the db.
 	if err := bav._flushUtxosToDbWithTxn(txn); err != nil {
 		return err
 	}
+	/*
+		if err := bav._flushBitcoinExchangeDataWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushBitcoinExchangeDataWithTxn(txn); err != nil {
-		return err
-	}
+		if err := bav._flushGlobalParamsEntryToDbWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushGlobalParamsEntryToDbWithTxn(txn); err != nil {
-		return err
-	}
+		if err := bav._flushForbiddenPubKeyEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushForbiddenPubKeyEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
+		if err := bav._flushMessageEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushMessageEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
+		if err := bav._flushLikeEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushLikeEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
+		if err := bav._flushFollowEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushFollowEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
+		if err := bav._flushDiamondEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushDiamondEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
+		if err := bav._flushRecloutEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
 
-	if err := bav._flushRecloutEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
-
-	if err := bav._flushPostEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
-	if err := bav._flushProfileEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
-	if err := bav._flushBalanceEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
-	if err := bav._flushPKIDEntriesToDbWithTxn(txn); err != nil {
-		return err
-	}
-
+		if err := bav._flushPostEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
+		if err := bav._flushProfileEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
+		if err := bav._flushBalanceEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
+		if err := bav._flushPKIDEntriesToDbWithTxn(txn); err != nil {
+			return err
+		}
+	*/
 	return nil
 }
 
 func (bav *UtxoView) FlushToDb() error {
-	// Make sure everything happens inside a single transaction.
-	err := bav.Handle.Update(func(txn *badger.Txn) error {
-		return bav.FlushToDbWithTxn(txn)
-	})
-	if err != nil {
-		return err
-	}
-
-	// After a successful flush, reset the in-memory mappings for the view
-	// so that it can be re-used if desired.
-	//
-	// Note that the TipHash does not get reset as part of _ResetViewMappingsAfterFlush because
-	// it is not something that is affected by a flush operation. Moreover, its value
-	// is consistent with the view regardless of whether or not the view is flushed or
-	// not.
+	bav.FlushToDbWithTxn(nil)
 	bav._ResetViewMappingsAfterFlush()
-
 	return nil
 }

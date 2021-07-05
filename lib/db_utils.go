@@ -1814,10 +1814,6 @@ func _SerializeUtxoKey(utxoKey *UtxoKey) []byte {
 
 }
 
-func _DbKeyForUtxoKey(utxoKey *UtxoKey) []byte {
-	return append(append([]byte{}, _PrefixUtxoKeyToUtxoEntry...), _SerializeUtxoKey(utxoKey)...)
-}
-
 // Implements the reverse of _DbKeyForUtxoKey. This doesn't error-check
 // and caller should make sure they're passing a properly-sized key to
 // this function.
@@ -1845,47 +1841,41 @@ func PutUtxoNumEntriesWithTxn(txn *badger.Txn, newNumEntries uint64) error {
 	return txn.Set(_KeyUtxoNumEntries, EncodeUint64(newNumEntries))
 }
 
+func _DbKeyForUtxoKey(utxoKey *UtxoKey) [36]byte {
+	s := _SerializeUtxoKey(utxoKey)
+	var b [36]byte
+	copy(b[:], s)
+	return b
+}
+
+var UtxosKeyToEntry = map[[36]byte][]byte{} // META
+
 func PutUtxoEntryForUtxoKeyWithTxn(txn *badger.Txn, utxoKey *UtxoKey, utxoEntry *UtxoEntry) error {
-	return txn.Set(_DbKeyForUtxoKey(utxoKey), _DbBufForUtxoEntry(utxoEntry))
+	key := _DbKeyForUtxoKey(utxoKey)
+	value := _DbBufForUtxoEntry(utxoEntry)
+
+	UtxosKeyToEntry[key] = value
+	return nil
 }
 
 func DbGetUtxoEntryForUtxoKeyWithTxn(txn *badger.Txn, utxoKey *UtxoKey) *UtxoEntry {
 	var ret UtxoEntry
 	utxoDbKey := _DbKeyForUtxoKey(utxoKey)
-	item, err := txn.Get(utxoDbKey)
-	if err != nil {
-		return nil
-	}
-
-	err = item.Value(func(valBytes []byte) error {
-		// TODO: Storing with gob is very slow due to reflection. Would be
-		// better if we serialized/deserialized manually.
-		if err := gob.NewDecoder(bytes.NewReader(valBytes)).Decode(&ret); err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil
-	}
+	valBytes := UtxosKeyToEntry[utxoDbKey]
+	gob.NewDecoder(bytes.NewReader(valBytes)).Decode(&ret)
 
 	return &ret
 }
 
 func DbGetUtxoEntryForUtxoKey(handle *badger.DB, utxoKey *UtxoKey) *UtxoEntry {
-	var ret *UtxoEntry
-	handle.View(func(txn *badger.Txn) error {
-		ret = DbGetUtxoEntryForUtxoKeyWithTxn(txn, utxoKey)
-		return nil
-	})
-
-	return ret
+	return DbGetUtxoEntryForUtxoKeyWithTxn(nil, utxoKey)
 }
 
 func DeleteUtxoEntryForKeyWithTxn(txn *badger.Txn, utxoKey *UtxoKey) error {
-	return txn.Delete(_DbKeyForUtxoKey(utxoKey))
+
+	//TODO delete
+	//return txn.Delete(_DbKeyForUtxoKey(utxoKey))
+	return nil
 }
 
 func DeletePubKeyUtxoKeyMappingWithTxn(txn *badger.Txn, publicKey []byte, utxoKey *UtxoKey) error {
@@ -1980,25 +1970,20 @@ func DbGetUtxosForPubKey(publicKey []byte, handle *badger.DB) ([]*UtxoEntry, err
 }
 
 func DeleteUnmodifiedMappingsForUtxoWithTxn(txn *badger.Txn, utxoKey *UtxoKey) error {
-	// Get the entry for the utxoKey from the db.
-	utxoEntry := DbGetUtxoEntryForUtxoKeyWithTxn(txn, utxoKey)
-	if utxoEntry == nil {
-		// If an entry doesn't exist for this key then there is nothing in the
-		// db to delete.
-		return nil
-	}
+	/*
+		utxoEntry := DbGetUtxoEntryForUtxoKeyWithTxn(txn, utxoKey)
+		if utxoEntry == nil {
+			return nil
+		}
 
-	// If the entry exists, delete the <UtxoKey -> UtxoEntry> mapping from the db.
-	// It is assumed that the entry corresponding to a key has not been modified
-	// and so is OK to delete
-	if err := DeleteUtxoEntryForKeyWithTxn(txn, utxoKey); err != nil {
-		return err
-	}
+		if err := DeleteUtxoEntryForKeyWithTxn(txn, utxoKey); err != nil {
+			return err
+		}
 
-	// Delete the <pubkey, utxoKey> -> <> mapping.
-	if err := DeletePubKeyUtxoKeyMappingWithTxn(txn, utxoEntry.PublicKey, utxoKey); err != nil {
-		return err
-	}
+		if err := DeletePubKeyUtxoKeyMappingWithTxn(txn, utxoEntry.PublicKey, utxoKey); err != nil {
+			return err
+		}
+	*/
 
 	return nil
 }
@@ -2383,51 +2368,41 @@ func InitDbWithBitCloutGenesisBlock(params *BitCloutParams, handle *badger.DB) e
 		return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting (height, hash -> node) in db")
 	}
 	/*
-			if err := DbPutNanosPurchased(handle, params.BitCloutNanosPurchasedAtGenesis); err != nil {
-				return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting genesis block hash into db for block chain")
-			}
-			if err := DbPutGlobalParamsEntry(handle, InitialGlobalParamsEntry); err != nil {
-				return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting GlobalParamsEntry into db for block chain")
-			}
+		if err := DbPutNanosPurchased(handle, params.BitCloutNanosPurchasedAtGenesis); err != nil {
+			return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting genesis block hash into db for block chain")
+		}
+		if err := DbPutGlobalParamsEntry(handle, InitialGlobalParamsEntry); err != nil {
+			return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting GlobalParamsEntry into db for block chain")
+		}
 
-			// We apply seed transactions here. This step is useful for setting
-			// up the blockchain with a particular set of transactions, e.g. when
-			// hard forking the chain.
-			//
-			// TODO: Right now there's an issue where if we hit an errur during this
-			// step of the initialization, the next time we run the program it will
-			// think things are initialized because we set the best block hash at the
-			// top. We should fix this at some point so that an error in this step
-			// wipes out the best hash.
-			utxoView, err := NewUtxoView(handle, params, nil)
-			if err != nil {
-				return fmt.Errorf(
-					"InitDbWithBitCloutGenesisBlock: Error initializing UtxoView")
-			}
+	*/
+	utxoView, err := NewUtxoView(handle, params, nil)
+	if err != nil {
+		return fmt.Errorf(
+			"InitDbWithBitCloutGenesisBlock: Error initializing UtxoView")
+	}
 
-			// Add the seed balances to the view.
-			for index, txOutput := range params.SeedBalances {
-				outputKey := UtxoKey{
-					TxID:  BlockHash{},
-					Index: uint32(index),
-				}
-				utxoEntry := UtxoEntry{
-					AmountNanos: txOutput.AmountNanos,
-					PublicKey:   txOutput.PublicKey,
-					BlockHeight: 0,
-					// Just make this a normal transaction so that we don't have to wait for
-					// the block reward maturity.
-					UtxoType: UtxoTypeOutput,
-					UtxoKey:  &outputKey,
-				}
+	for index, txOutput := range params.SeedBalances {
+		outputKey := UtxoKey{
+			TxID:  BlockHash{},
+			Index: uint32(index),
+		}
+		utxoEntry := UtxoEntry{
+			AmountNanos: txOutput.AmountNanos,
+			PublicKey:   txOutput.PublicKey,
+			BlockHeight: 0,
+			UtxoType:    UtxoTypeOutput,
+			UtxoKey:     &outputKey,
+		}
 
-				_, err := utxoView._addUtxo(&utxoEntry)
-				if err != nil {
-					return fmt.Errorf("InitDbWithBitCloutGenesisBlock: Error adding "+
-						"seed balance at index %v ; output: %v: %v", index, txOutput, err)
-				}
-			}
+		_, err := utxoView._addUtxo(&utxoEntry)
+		if err != nil {
+			return fmt.Errorf("InitDbWithBitCloutGenesisBlock: Error adding "+
+				"seed balance at index %v ; output: %v: %v", index, txOutput, err)
+		}
+	}
 
+	/*
 		for txnIndex, txnHex := range params.SeedTxns {
 			txnBytes, err := hex.DecodeString(txnHex)
 			if err != nil {
@@ -2452,12 +2427,13 @@ func InitDbWithBitCloutGenesisBlock(params *BitCloutParams, handle *badger.DB) e
 					err, txnIndex, txnHex)
 			}
 		}
-		err = utxoView.FlushToDb()
-		if err != nil {
-			return fmt.Errorf(
-				"InitDbWithBitCloutGenesisBlock: Error flushing seed txns to DB: %v", err)
-		}
+
 	*/
+	err = utxoView.FlushToDb()
+	if err != nil {
+		return fmt.Errorf(
+			"InitDbWithBitCloutGenesisBlock: Error flushing seed txns to DB: %v", err)
+	}
 	return nil
 }
 
