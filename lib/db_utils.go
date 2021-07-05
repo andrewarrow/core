@@ -2396,150 +2396,99 @@ func InitDbWithBitCloutGenesisBlock(params *BitCloutParams, handle *badger.DB) e
 	if err := PutHeightHashToNodeInfo(genesisNode, handle, false /*bitcoinNodes*/); err != nil {
 		return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting (height, hash -> node) in db")
 	}
-	if err := DbPutNanosPurchased(handle, params.BitCloutNanosPurchasedAtGenesis); err != nil {
-		return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting genesis block hash into db for block chain")
-	}
-	if err := DbPutGlobalParamsEntry(handle, InitialGlobalParamsEntry); err != nil {
-		return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting GlobalParamsEntry into db for block chain")
-	}
+	/*
+			if err := DbPutNanosPurchased(handle, params.BitCloutNanosPurchasedAtGenesis); err != nil {
+				return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting genesis block hash into db for block chain")
+			}
+			if err := DbPutGlobalParamsEntry(handle, InitialGlobalParamsEntry); err != nil {
+				return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting GlobalParamsEntry into db for block chain")
+			}
 
-	// We apply seed transactions here. This step is useful for setting
-	// up the blockchain with a particular set of transactions, e.g. when
-	// hard forking the chain.
-	//
-	// TODO: Right now there's an issue where if we hit an errur during this
-	// step of the initialization, the next time we run the program it will
-	// think things are initialized because we set the best block hash at the
-	// top. We should fix this at some point so that an error in this step
-	// wipes out the best hash.
-	utxoView, err := NewUtxoView(handle, params, nil)
-	if err != nil {
-		return fmt.Errorf(
-			"InitDbWithBitCloutGenesisBlock: Error initializing UtxoView")
-	}
+			// We apply seed transactions here. This step is useful for setting
+			// up the blockchain with a particular set of transactions, e.g. when
+			// hard forking the chain.
+			//
+			// TODO: Right now there's an issue where if we hit an errur during this
+			// step of the initialization, the next time we run the program it will
+			// think things are initialized because we set the best block hash at the
+			// top. We should fix this at some point so that an error in this step
+			// wipes out the best hash.
+			utxoView, err := NewUtxoView(handle, params, nil)
+			if err != nil {
+				return fmt.Errorf(
+					"InitDbWithBitCloutGenesisBlock: Error initializing UtxoView")
+			}
 
-	// Add the seed balances to the view.
-	for index, txOutput := range params.SeedBalances {
-		outputKey := UtxoKey{
-			TxID:  BlockHash{},
-			Index: uint32(index),
+			// Add the seed balances to the view.
+			for index, txOutput := range params.SeedBalances {
+				outputKey := UtxoKey{
+					TxID:  BlockHash{},
+					Index: uint32(index),
+				}
+				utxoEntry := UtxoEntry{
+					AmountNanos: txOutput.AmountNanos,
+					PublicKey:   txOutput.PublicKey,
+					BlockHeight: 0,
+					// Just make this a normal transaction so that we don't have to wait for
+					// the block reward maturity.
+					UtxoType: UtxoTypeOutput,
+					UtxoKey:  &outputKey,
+				}
+
+				_, err := utxoView._addUtxo(&utxoEntry)
+				if err != nil {
+					return fmt.Errorf("InitDbWithBitCloutGenesisBlock: Error adding "+
+						"seed balance at index %v ; output: %v: %v", index, txOutput, err)
+				}
+			}
+
+		for txnIndex, txnHex := range params.SeedTxns {
+			txnBytes, err := hex.DecodeString(txnHex)
+			if err != nil {
+				return fmt.Errorf(
+					"InitDbWithBitCloutGenesisBlock: Error decoding seed "+
+						"txn HEX: %v, txn index: %v, txn hex: %v",
+					err, txnIndex, txnHex)
+			}
+			txn := &MsgBitCloutTxn{}
+			if err := txn.FromBytes(txnBytes); err != nil {
+				return fmt.Errorf(
+					"InitDbWithBitCloutGenesisBlock: Error decoding seed "+
+						"txn BYTES: %v, txn index: %v, txn hex: %v",
+					err, txnIndex, txnHex)
+			}
+			_, _, _, _, err = utxoView.ConnectTransaction(
+				txn, txn.Hash(), 0, 0, false, true)
+			if err != nil {
+				return fmt.Errorf(
+					"InitDbWithBitCloutGenesisBlock: Error connecting transaction: %v, "+
+						"txn index: %v, txn hex: %v",
+					err, txnIndex, txnHex)
+			}
 		}
-		utxoEntry := UtxoEntry{
-			AmountNanos: txOutput.AmountNanos,
-			PublicKey:   txOutput.PublicKey,
-			BlockHeight: 0,
-			// Just make this a normal transaction so that we don't have to wait for
-			// the block reward maturity.
-			UtxoType: UtxoTypeOutput,
-			UtxoKey:  &outputKey,
-		}
-
-		_, err := utxoView._addUtxo(&utxoEntry)
-		if err != nil {
-			return fmt.Errorf("InitDbWithBitCloutGenesisBlock: Error adding "+
-				"seed balance at index %v ; output: %v: %v", index, txOutput, err)
-		}
-	}
-
-	// Add the seed txns to the view
-	for txnIndex, txnHex := range params.SeedTxns {
-		txnBytes, err := hex.DecodeString(txnHex)
+		err = utxoView.FlushToDb()
 		if err != nil {
 			return fmt.Errorf(
-				"InitDbWithBitCloutGenesisBlock: Error decoding seed "+
-					"txn HEX: %v, txn index: %v, txn hex: %v",
-				err, txnIndex, txnHex)
+				"InitDbWithBitCloutGenesisBlock: Error flushing seed txns to DB: %v", err)
 		}
-		txn := &MsgBitCloutTxn{}
-		if err := txn.FromBytes(txnBytes); err != nil {
-			return fmt.Errorf(
-				"InitDbWithBitCloutGenesisBlock: Error decoding seed "+
-					"txn BYTES: %v, txn index: %v, txn hex: %v",
-				err, txnIndex, txnHex)
-		}
-		// Important: ignoreUtxos makes it so that the inputs/outputs aren't
-		// processed, which is important.
-		// Set txnSizeBytes to 0 here as the minimum network fee is 0 at genesis block, so there is no need to serialize
-		// these transactions to check if they meet the minimum network fee requirement.
-		_, _, _, _, err = utxoView.ConnectTransaction(
-			txn, txn.Hash(), 0, 0 /*blockHeight*/, false /*verifySignatures*/, true /*ignoreUtxos*/)
-		if err != nil {
-			return fmt.Errorf(
-				"InitDbWithBitCloutGenesisBlock: Error connecting transaction: %v, "+
-					"txn index: %v, txn hex: %v",
-				err, txnIndex, txnHex)
-		}
-	}
-	// Flush all the data in the view.
-	err = utxoView.FlushToDb()
-	if err != nil {
-		return fmt.Errorf(
-			"InitDbWithBitCloutGenesisBlock: Error flushing seed txns to DB: %v", err)
-	}
-
+	*/
 	return nil
 }
 
 func GetBlockIndex(handle *badger.DB, bitcoinNodes bool) (map[BlockHash]*BlockNode, error) {
 	blockIndex := make(map[BlockHash]*BlockNode)
 
-	prefix := _heightHashToNodeIndexPrefix(bitcoinNodes)
-
-	err := handle.View(func(txn *badger.Txn) error {
-		opts := badger.DefaultIteratorOptions
-		nodeIterator := txn.NewIterator(opts)
-		defer nodeIterator.Close()
-		for nodeIterator.Seek(prefix); nodeIterator.ValidForPrefix(prefix); nodeIterator.Next() {
-			var blockNode *BlockNode
-
-			// Don't bother checking the key. We assume that the key lines up
-			// with what we've stored in the value in terms of (height, block hash).
-			item := nodeIterator.Item()
-			err := item.Value(func(blockNodeBytes []byte) error {
-				// Deserialize the block node.
-				var err error
-				// TODO: There is room for optimization here by pre-allocating a
-				// contiguous list of block nodes and then populating that list
-				// rather than having each blockNode be a stand-alone allocation.
-				blockNode, err = DeserializeBlockNode(blockNodeBytes)
-				if err != nil {
-					return err
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			// If we got hear it means we read a blockNode successfully. Store it
-			// into our node index.
-			blockIndex[*blockNode.Hash] = blockNode
-
-			// Find the parent of this block, which should already have been read
-			// in and connect it. Skip the genesis block, which has height 0. Also
-			// skip the block if its PrevBlockHash is empty, which will be true for
-			// the BitcoinStartBlockNode.
-			//
-			// TODO: There is room for optimization here by keeping a reference to
-			// the last node we've iterated over and checking if that node is the
-			// parent. Doing this would avoid an expensive hashmap check to get
-			// the parent by its block hash.
-			if blockNode.Height == 0 || (*blockNode.Header.PrevBlockHash == BlockHash{}) {
-				continue
-			}
-			if parent, ok := blockIndex[*blockNode.Header.PrevBlockHash]; ok {
-				// We found the parent node so connect it.
-				blockNode.Parent = parent
-			} else {
-				// In this case we didn't find the parent so error. There shouldn't
-				// be any unconnectedTxns in our block index.
-				return fmt.Errorf("GetBlockIndex: Could not find parent for blockNode: %+v", blockNode)
-			}
+	for _, blockNodeBytes := range HeightHashToNode {
+		blockNode, _ := DeserializeBlockNode(blockNodeBytes)
+		blockIndex[*blockNode.Hash] = blockNode
+		if blockNode.Height == 0 || (*blockNode.Header.PrevBlockHash == BlockHash{}) {
+			continue
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "GetBlockIndex: Problem reading block index from db")
+		if parent, ok := blockIndex[*blockNode.Header.PrevBlockHash]; ok {
+			blockNode.Parent = parent
+		} else {
+			fmt.Printf("GetBlockIndex: Could not find parent for blockNode: %+v\n", blockNode)
+		}
 	}
 
 	return blockIndex, nil
