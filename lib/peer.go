@@ -482,6 +482,7 @@ func (pp *Peer) HandleInv(msg *MsgBitCloutInv) {
 }
 
 func (pp *Peer) HandleGetBlocks(msg *MsgBitCloutGetBlocks) {
+	fmt.Println("HERE")
 	// Nothing to do if the request is empty.
 	if len(msg.HashList) == 0 {
 		glog.Debugf("Server._handleGetBlocks: Received empty GetBlocks "+
@@ -1193,8 +1194,10 @@ func (pp *Peer) ReadBitCloutMessage() (BitCloutMessage, error) {
 
 	// Useful for debugging.
 	messageSeq := atomic.AddUint64(&pp.totalMessages, 1)
-	glog.Debugf("RECEIVED( seq=%d ) message of type: %v from peer %v: %v",
-		messageSeq, msg.GetMsgType(), pp, msg)
+	//fmt.Printf("RECEIVED( seq=%d ) message of type: %v from peer %v: %v\n",
+	//messageSeq, msg.GetMsgType(), pp, msg)
+	fmt.Printf("RECEIVED( seq=%d ) message of type: %v from peer.\n",
+		messageSeq, msg.GetMsgType())
 
 	return msg, nil
 }
@@ -1380,6 +1383,7 @@ func (pp *Peer) NegotiateVersion(versionNegotiationTimeout time.Duration) error 
 
 			return errors.Wrapf(err, "negotiateVersion: Problem reading INBOUND peer version for Peer %v", pp)
 		}
+
 		if err := pp.sendVersion(); err != nil {
 			return errors.Wrapf(err, "negotiateVersion: Problem sending version to Peer %v", pp)
 		}
