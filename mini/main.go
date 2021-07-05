@@ -56,6 +56,23 @@ func main() {
 	PutHeightHashToNodeInfo(genesisNode)
 	//DbPutNanosPurchased(uint64(6000000000000000))
 	//DbPutGlobalParamsEntry(InitialGlobalParamsEntry)
+	utxoView := NewUtxoView()
+	for index, txOutput := range SeedBalances {
+		outputKey := UtxoKey{
+			TxID:  BlockHash{},
+			Index: uint32(index),
+		}
+		utxoEntry := UtxoEntry{
+			AmountNanos: txOutput.AmountNanos,
+			PublicKey:   txOutput.PublicKey,
+			BlockHeight: 0,
+			UtxoType:    UtxoTypeOutput,
+			UtxoKey:     &outputKey,
+		}
+
+		utxoView._addUtxo(&utxoEntry)
+	}
+	fmt.Println(utxoView)
 
 }
 
@@ -110,11 +127,6 @@ type BitCloutOutput struct {
 
 type BitCloutInput UtxoKey
 
-type UtxoKey struct {
-	TxID  BlockHash
-	Index uint32
-}
-
 type MsgBitCloutTxn struct {
 	TxInputs    []*BitCloutInput
 	TxOutputs   []*BitCloutOutput
@@ -168,3 +180,10 @@ func NewBlockNode(
 		Status:           status,
 	}
 }
+
+type OperationType uint
+
+const (
+	UtxoTypeOutput       UtxoType      = 0
+	OperationTypeAddUtxo OperationType = 0
+)
