@@ -1837,8 +1837,10 @@ func _DbBufForUtxoEntry(utxoEntry *UtxoEntry) []byte {
 	return utxoEntryBuf.Bytes()
 }
 
+// TODO PutUtxoNumEntriesWithTxn
 func PutUtxoNumEntriesWithTxn(txn *badger.Txn, newNumEntries uint64) error {
-	return txn.Set(_KeyUtxoNumEntries, EncodeUint64(newNumEntries))
+	//return txn.Set(_KeyUtxoNumEntries, EncodeUint64(newNumEntries))
+	return nil
 }
 
 func _DbKeyForUtxoKey(utxoKey *UtxoKey) [36]byte {
@@ -1994,10 +1996,10 @@ func PutMappingsForUtxoWithTxn(txn *badger.Txn, utxoKey *UtxoKey, utxoEntry *Utx
 		return nil
 	}
 
-	// Put the <pubkey, utxoKey> -> <> mapping.
-	if err := PutPubKeyUtxoKeyWithTxn(txn, utxoEntry.PublicKey, utxoKey); err != nil {
-		return err
-	}
+	// TODO pubkey
+	//if err := PutPubKeyUtxoKeyWithTxn(txn, utxoEntry.PublicKey, utxoKey); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
