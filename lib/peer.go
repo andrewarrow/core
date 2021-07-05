@@ -2,13 +2,14 @@ package lib
 
 import (
 	"fmt"
-	"github.com/decred/dcrd/lru"
 	"math"
 	"net"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/decred/dcrd/lru"
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/golang/glog"
@@ -528,7 +529,7 @@ func (pp *Peer) cleanupMessageProcessor() {
 }
 
 func (pp *Peer) StartBitCloutMessageProcessor() {
-	glog.Infof("StartBitCloutMessageProcessor: Starting for peer %v", pp)
+	//glog.Infof("StartBitCloutMessageProcessor: Starting for peer %v", pp)
 	for {
 		if pp.disconnected != 0 {
 			pp.cleanupMessageProcessor()
@@ -1132,7 +1133,7 @@ out:
 }
 
 func (pp *Peer) Start() {
-	glog.Infof("Peer.Start: Starting peer %v", pp)
+	fmt.Printf("Peer.Start: Starting peer %v\n", pp)
 	// The protocol has been negotiated successfully so start processing input
 	// and output messages.
 	go pp.pingHandler()

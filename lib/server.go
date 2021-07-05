@@ -523,8 +523,8 @@ func (srv *Server) GetBlocks(pp *Peer, maxHeight int) {
 }
 
 func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
-	glog.Infof("Received header bundle with %v headers "+
-		"in state %s from peer %v. Downloaded ( %v / %v ) total headers",
+	fmt.Printf("Received header bundle with %v headers "+
+		"in state %s from peer %v. Downloaded ( %v / %v ) total headers\n",
 		len(msg.Headers), srv.blockchain.chainState(), pp,
 		srv.blockchain.headerTip().Header.Height, pp.StartingBlockHeight())
 
@@ -1749,7 +1749,7 @@ func (srv *Server) GetStatsdClient() *statsd.Client {
 func (srv *Server) Start() {
 	// Start the Server so that it will be ready to process messages once the ConnectionManager
 	// finds some Peers.
-	glog.Info("Server.Start: Starting Server")
+	//glog.Info("Server.Start: Starting Server")
 	srv.waitGroup.Add(1)
 	go srv.messageHandler()
 

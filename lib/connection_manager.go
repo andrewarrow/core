@@ -52,9 +52,9 @@ type ConnectionManager struct {
 	maxInboundPeers uint32
 	// When true, only one connection per IP is allowed. Prevents eclipse attacks
 	// among other things.
-	limitOneInboundConnectionPerIP bool
+	limitOneInboundConnectionPerIP    bool
 	ignoreUnminedBitcoinTxnsFromPeers bool
-	blockCypherAPIKey string
+	blockCypherAPIKey                 string
 
 	// Keep track of the nonces we've sent in our version messages so
 	// we can prevent connections to ourselves.
@@ -153,14 +153,14 @@ func NewConnectionManager(
 		newPeerChan:  make(chan *Peer),
 		donePeerChan: make(chan *Peer),
 
-		targetOutboundPeers:            _targetOutboundPeers,
-		maxInboundPeers:                _maxInboundPeers,
-		limitOneInboundConnectionPerIP: _limitOneInboundConnectionPerIP,
-		ignoreUnminedBitcoinTxnsFromPeers: 	_ignoreUnminedBitcoinTxnsFromPeers,
-		blockCypherAPIKey: _blockCypherAPIKey,
-		serverMessageQueue:             _serverMessageQueue,
-		stallTimeoutSeconds:            _stallTimeoutSeconds,
-		minFeeRateNanosPerKB:           _minFeeRateNanosPerKB,
+		targetOutboundPeers:               _targetOutboundPeers,
+		maxInboundPeers:                   _maxInboundPeers,
+		limitOneInboundConnectionPerIP:    _limitOneInboundConnectionPerIP,
+		ignoreUnminedBitcoinTxnsFromPeers: _ignoreUnminedBitcoinTxnsFromPeers,
+		blockCypherAPIKey:                 _blockCypherAPIKey,
+		serverMessageQueue:                _serverMessageQueue,
+		stallTimeoutSeconds:               _stallTimeoutSeconds,
+		minFeeRateNanosPerKB:              _minFeeRateNanosPerKB,
 	}
 }
 
@@ -506,7 +506,7 @@ func (cmgr *ConnectionManager) _isFromRedundantInboundIPAddress(addrToCheck net.
 	// Loop through all the peers to see if any have the same IP
 	// address. This map is normally pretty small so doing this
 	// every time a Peer connects should be fine.
-	netAddr, err := IPToNetAddr(addrToCheck.String(),  cmgr.addrMgr, cmgr.params)
+	netAddr, err := IPToNetAddr(addrToCheck.String(), cmgr.addrMgr, cmgr.params)
 	if err != nil {
 		// Return true in case we have an error. We do this because it
 		// will result in the peer connection not being accepted, which
@@ -793,7 +793,7 @@ func (cmgr *ConnectionManager) Start() {
 	// Accept inbound connections from peers on our listeners.
 	cmgr._handleInboundConnections()
 
-	glog.Infof("Full node socket initialized")
+	//glog.Infof("Full node socket initialized")
 
 	for {
 		// Log some data for each event.
@@ -823,9 +823,9 @@ func (cmgr *ConnectionManager) Start() {
 					cmgr.isRedundantGroupKey(pp.netAddr) {
 
 					// TODO: Make this less verbose
-					glog.Infof("Rejecting OUTBOUND NON-PERSISTENT peer (%v) with "+
-						"redundant group key (%s).",
-						pp, addrmgr.GroupKey(pp.netAddr))
+					//glog.Infof("Rejecting OUTBOUND NON-PERSISTENT peer (%v) with "+
+					//"redundant group key (%s).",
+					//pp, addrmgr.GroupKey(pp.netAddr))
 
 					pp.conn.Close()
 					cmgr._maybeReplacePeer(pp)

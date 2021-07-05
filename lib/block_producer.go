@@ -3,10 +3,11 @@ package lib
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/tyler-smith/go-bip39"
 	"math"
 	"time"
+
+	"github.com/btcsuite/btcd/wire"
+	"github.com/tyler-smith/go-bip39"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/sasha-s/go-deadlock"
@@ -81,7 +82,7 @@ func NewBitCloutBlockProducer(
 	return &BitCloutBlockProducer{
 		minBlockUpdateIntervalSeconds: _minBlockUpdateIntervalSeconds,
 		maxBlockTemplatesToCache:      _maxBlockTemplatesToCache,
-		blockProducerPrivateKey: _privKey,
+		blockProducerPrivateKey:       _privKey,
 		recentBlockTemplatesProduced:  make(map[BlockHash]*MsgBitCloutBlock),
 
 		mempool:        _mempool,
@@ -319,8 +320,8 @@ func (bitcloutBlockProducer *BitCloutBlockProducer) _getBlockTemplate(publicKey 
 		return nil, nil, nil, errors.Wrapf(err, "BitCloutBlockProducer._getBlockTemplate: Problem computing next difficulty: ")
 	}
 
-	glog.Infof("Produced block with %v txns with approx %v total txns in mempool",
-		len(blockRet.Txns), len(bitcloutBlockProducer.mempool.readOnlyUniversalTransactionList))
+	//glog.Infof("Produced block with %v txns with approx %v total txns in mempool",
+	//len(blockRet.Txns), len(bitcloutBlockProducer.mempool.readOnlyUniversalTransactionList))
 	return blockRet, diffTarget, lastNode, nil
 }
 
@@ -532,7 +533,7 @@ func (bitcloutBlockProducer *BitCloutBlockProducer) Start() {
 			continue
 		}
 
-		glog.Info("BitcoinManager is time-current; proceeding with producing blocks!")
+		//glog.Info("BitcoinManager is time-current; proceeding with producing blocks!")
 		break
 	}
 
