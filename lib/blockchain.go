@@ -1308,19 +1308,11 @@ func updateBestChainInMemory(mainChainList []*BlockNode, mainChainMap map[BlockH
 
 // Caller must acquire the ChainLock for writing prior to calling this.
 func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *BlockHash) (_isMainChain bool, _isOrphan bool, _err error) {
-	// Start by checking if the header already exists in our node
-	// index. If it does, then return an error. We should generally
-	// expect that processHeader will only be called on headers we
-	// haven't seen before.
 	_, nodeExists := bc.blockIndex[*headerHash]
 	if nodeExists {
 		return false, false, HeaderErrorDuplicateHeader
 	}
 
-	// If we're here then it means we're processing a header we haven't
-	// seen before.
-
-	// Reject the header if it is more than N seconds in the future.
 	tstampDiff := int64(blockHeader.TstampSecs) - bc.timeSource.AdjustedTime().Unix()
 	if tstampDiff > int64(bc.params.MaxTstampOffsetSeconds) {
 		glog.Debugf("HeaderErrorBlockTooFarInTheFuture: tstampDiff %d > "+
@@ -1330,23 +1322,14 @@ func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *
 		return false, false, HeaderErrorBlockTooFarInTheFuture
 	}
 
-	// Try to find this header's parent in our block index.
-	// If we can't find the parent then this header is an orphan and we
-	// can return early because we don't process unconnectedTxns.
-	// TODO: Should we just return an error if the header is an orphan?
 	if blockHeader.PrevBlockHash == nil {
 		return false, false, HeaderErrorNilPrevHash
 	}
 	parentNode, parentNodeExists := bc.blockIndex[*blockHeader.PrevBlockHash]
 	if !parentNodeExists {
-		// This block is an orphan if its parent doesn't exist and we don't
-		// process unconnectedTxns.
 		return false, true, nil
 	}
 
-	// If the parent node is invalid then this header is invalid as well. Note that
-	// if the parent node exists then its header must either be Validated or
-	// ValidateFailed.
 	parentHeader := parentNode.Header
 	if parentHeader == nil || (parentNode.Status&(StatusHeaderValidateFailed|StatusBlockValidateFailed)) != 0 {
 		return false, false, errors.Wrapf(
@@ -1356,7 +1339,6 @@ func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *
 			parentNode.Header)
 	}
 
-	// Verify that the height is one greater than the parent.
 	prevHeight := parentHeader.Height
 	if blockHeader.Height != prevHeight+1 {
 		glog.Errorf("processHeader: Height of block (=%d) is not equal to one greater "+
@@ -1364,29 +1346,6 @@ func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *
 		return false, false, HeaderErrorHeightInvalid
 	}
 
-	// Make sure the block timestamp is greater than the previous block's timestamp.
-	// Note Bitcoin checks that the timestamp is greater than the median
-	// of the last 11 blocks. While this seems to work for Bitcoin for now it seems
-	// vulnerable to a "time warp" attack (requires 51%) and
-	// we can do a little better by forcing a harder constraint of making
-	// sure a timestamp is larger than the of the previous block. It seems
-	// the only real downside of this is some complexity on the miner side
-	// of having to account for what happens if a block appears that is from
-	// some nearby time in the future rather than the current time. But this
-	// burden seems worth it in order to
-	// preclude a known and fairly damaging attack from being possible. Moreover,
-	// while there are more complicated schemes to fight other attacks based on
-	// timestamp manipulation, their benefits seem marginal and not worth the
-	// added complexity they entail for now.
-	//
-	// Discussion of time warp attack and potential fixes for BTC:
-	// https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2018-August/016342.html
-	// Discussion of more complex attacks and potential fixes:
-	// https://github.com/zawy12/difficulty-algorithms/issues/30
-	//
-	// TODO: Consider a per-block difficulty adjustment scheme like Ethereum has.
-	// This commentary is useful to consider with regard to that:
-	//   https://github.com/zawy12/difficulty-algorithms/issues/45
 	if blockHeader.TstampSecs <= parentHeader.TstampSecs {
 		glog.Warningf("processHeader: Rejecting header because timestamp %v is "+
 			"before timestamp of previous block %v",
@@ -1395,10 +1354,6 @@ func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *
 		return false, false, HeaderErrorTimestampTooEarly
 	}
 
-	// Check that the proof of work beats the difficulty as calculated from
-	// the parent block. Note that if the parent block is in the block index
-	// then it has necessarily had its difficulty validated, and so using it to
-	// do this check makes sense.
 	diffTarget, err := CalcNextDifficultyTarget(
 		parentNode, blockHeader.Version, bc.params)
 	if err != nil {
@@ -1413,17 +1368,6 @@ func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *
 			errors.Wrapf(HeaderErrorBlockDifficultyAboveTarget, "Target: %v, Actual: %v", diffTarget, headerHash)
 	}
 
-	// At this point the header seems sane so we store it in the db and add
-	// it to our in-memory block index. Note we're not doing this atomically.
-	// Worst-case, we have a block in our db with no pointer to it in our index,
-	// which isn't a big deal.
-	//
-	// Note in the calculation of CumWork below we are adding the work specified
-	// in the difficulty *target* rather than the work actually done to mine the
-	// block. There is a very good reason for this, which is that it materially
-	// increases a miner's incentive to reveal their block immediately after it's
-	// been mined as opposed to try and play games where they withhold their block
-	// and try to mine on top of it before revealing it to everyone.
 	newWork := BytesToBigint(ExpectedWorkForBlockHash(diffTarget)[:])
 	cumWork := newWork.Add(newWork, parentNode.CumWork)
 	newNode := NewBlockNode(
@@ -1435,28 +1379,10 @@ func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *
 		blockHeader,
 		StatusHeaderValidated)
 
-	// Note that we don't store a node for this header on the db until we have downloaded
-	// a corresponding block. This has the effect of preventing us against disk-fill
-	// attacks. If we instead stored headers on the db then we'd have to deal with an
-	// attack that looks as follows:
-	// - Attacker makes us download a lot of low-difficulty headers until we eventually
-	//   get current and disconnect because the chainwork is too low (having stored all
-	//   of those header nodes on the db).
-	// - Attacker repeats this over and over again until our db on disk is really full.
-	//
-	// The above is mitigated because we don't download blocks until we have a header chain
-	// with enough work, which means we won't store anything that doesn't have a lot of work
-	// built on it.
-
-	// If all went well with storing the header, set it in our in-memory
-	// index.
 	newBlockIndex := bc.CopyBlockIndex()
 	newBlockIndex[*newNode.Hash] = newNode
 	bc.blockIndex = newBlockIndex
 
-	// Update the header chain if this header has more cumulative work than
-	// the header chain's tip. Note that we can assume all ancestors of this
-	// header are valid at this point.
 	isMainChain := false
 	headerTip := bc.headerTip()
 	if headerTip.CumWork.Cmp(newNode.CumWork) < 0 {
@@ -1465,9 +1391,6 @@ func (bc *Blockchain) processHeader(blockHeader *MsgBitCloutHeader, headerHash *
 		_, detachBlocks, attachBlocks := GetReorgBlocks(headerTip, newNode)
 		bc.bestHeaderChain, bc.bestHeaderChainMap = updateBestChainInMemory(
 			bc.bestHeaderChain, bc.bestHeaderChainMap, detachBlocks, attachBlocks)
-
-		// Note that we don't store the best header hash here and so this is an
-		// in-memory-only adjustment. See the comment above on preventing attacks.
 	}
 
 	return isMainChain, false, nil

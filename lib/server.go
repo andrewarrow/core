@@ -524,20 +524,45 @@ func (srv *Server) GetBlocks(pp *Peer, maxHeight int) {
 }
 
 func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
+	aMerkleRoot := BlockHash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+		1, 2}
+	fmt.Println("_handleHeaderBundle", len(msg.Headers))
+	list := []*BlockNode{}
+	for _, headerReceived := range msg.Headers {
+		headerHash, _ := headerReceived.Hash()
+		newNode := NewBlockNode(
+			nil,
+			headerHash,
+			uint32(headerReceived.Height),
+			&aMerkleRoot,
+			nil,
+			headerReceived,
+			StatusHeaderValidated)
+		fmt.Println(newNode, msg.TipHeight, headerReceived.Height)
+		list = append(list, newNode)
+	}
+
+	hashList := []*BlockHash{}
+	for _, node := range list {
+		hashList = append(hashList, node.Hash)
+
+		pp.requestedBlocks[*node.Hash] = true
+	}
+	pp.AddBitCloutMessage(&MsgBitCloutGetBlocks{
+		HashList: hashList,
+	}, false)
+}
+
+func (srv *Server) old_handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 	fmt.Printf("Received header bundle with %v headers "+
 		"in state %s from peer %v. Downloaded ( %v / %v ) total headers\n",
 		len(msg.Headers), srv.blockchain.chainState(), pp,
 		srv.blockchain.headerTip().Header.Height, pp.StartingBlockHeight())
 
-	// Start by processing all of the headers given to us. They should start
-	// right after the tip of our header chain ideally. While going through them
-	// tally up the number that we actually process.
 	numNewHeaders := 0
 	for _, headerReceived := range msg.Headers {
-		// If we encounter a duplicate header while we're still syncing then
-		// the peer is misbehaving. Disconnect so we can find one that won't
-		// have this issue. Hitting duplicates after we're done syncing is
-		// fine and can happen in certain cases.
 		headerHash, _ := headerReceived.Hash()
 		if srv.blockchain.HasHeader(headerHash) {
 			if srv.blockchain.isSyncing() {
@@ -548,31 +573,14 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 					headerHash,
 					pp, srv.blockchain.chainState(), srv.blockchain.headerTip().Height,
 					hex.EncodeToString(srv.blockchain.headerTip().Hash[:]), headerHash)
-
-				// TODO: This logic should really be commented back in, but there was a bug that
-				// arises when a program is killed forcefully whereby a partial write leads to this
-				// logic causing the sync to stall. As such, it's more trouble than it's worth
-				// at the moment but we should consider being more strict about it in the future.
-				/*
-					pp.Disconnect()
-					return
-				*/
 			}
-
-			// Don't process duplicate headers.
 			continue
 		}
 
-		// If we get here then we have a header we haven't seen before.
 		numNewHeaders++
 
-		// Process the header, as we haven't seen it before.
 		_, isOrphan, err := srv.blockchain.ProcessHeader(headerReceived, headerHash)
 
-		// If this header is an orphan or we encoutnered an error for any reason,
-		// disconnect from the peer. Because every header is sent in response to
-		// a GetHeaders request, the peer should know enough to never send us
-		// unconnectedTxns unless it's misbehaving.
 		if err != nil || isOrphan {
 			glog.Errorf("Server._handleHeaderBundle: Disconnecting from peer %v in state %s "+
 				"because error occurred processing header: %v, isOrphan: %v",
@@ -583,28 +591,9 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 		}
 	}
 
-	// After processing all the headers this will check to see if we are fully current
-	// and send a request to our Peer to start a Mempool sync if so.
-	//
-	// This statement makes it so that if we boot up our node such that
-	// its initial state is fully current we'll always bootstrap our mempools with a
-	// mempool request. The alternative is that our state is not fully current
-	// when we boot up, and we cover this second case in the _handleBlock function.
 	srv._maybeRequestSync(pp)
 
-	// At this point we should have processed all the headers. Now we will
-	// make a decision on whether to request more headers from this peer based
-	// on how many headers we received in this message. Since every HeaderBundle
-	// is a response to a GetHeaders request from us with a HeaderLocator embedded in it, receiving
-	// anything less than MaxHeadersPerMsg headers from a peer is sufficient to
-	// make us think that the peer doesn't have any more interesting headers for us.
-	// On the other hand, if the request contains MaxHeadersPerMsg, it is highly
-	// likely we have not hit the tip of our peer's chain, and so requesting more
-	// headers from the peer would likely be useful.
 	if uint32(len(msg.Headers)) < MaxHeadersPerMsg {
-		// If we have exhausted the peer's headers but our header chain still isn't
-		// current it means the peer we chose isn't current either. So disconnect
-		// from her and try to sync with someone else.
 		if srv.blockchain.chainState() == SyncStateSyncingHeaders {
 			glog.Debugf("Server._handleHeaderBundle: Disconnecting from peer %v because "+
 				"we have exhausted their headers but our tip is still only "+
@@ -615,13 +604,7 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 			return
 		}
 
-		// If we have exhausted the peer's headers but our blocks aren't current,
-		// send a GetBlocks message to the peer for as many blocks as we can get.
 		if srv.blockchain.chainState() == SyncStateSyncingBlocks {
-			// A maxHeight of -1 tells GetBlocks to fetch as many blocks as we can
-			// from this peer without worrying about how many blocks the peer actually
-			// has. We can do that in this case since this usually happens dring sync
-			// before we've made any GetBlocks requests to the peer.
 			blockTip := srv.blockchain.blockTip()
 			glog.Debugf("Server._handleHeaderBundle: *Syncing* blocks starting at "+
 				"height %d out of %d from peer %v",
@@ -631,17 +614,8 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 			return
 		}
 
-		// If we have exhausted the peer's headers and our blocks are current but
-		// we still need a few more blocks to line our block chain up with
-		// our header chain, send the peer a GetBlocks message for blocks we're
-		// positive she has.
 		if srv.blockchain.chainState() == SyncStateNeedBlocksss ||
 			*(srv.blockchain.blockTip().Hash) != *(srv.blockchain.headerTip().Hash) {
-			// If the peer's tip is not in our blockchain then we don't request
-			// any blocks from them because they're on some kind of fork that
-			// we're either not aware of or that we don't think is the best chain.
-			// Doing things this way makes it so that when we request blocks we
-			// are 100% positive the peer has them.
 			if !srv.blockchain.HasHeader(msg.TipHash) {
 				glog.Debugf("Server._handleHeaderBundle: Peer's tip is not in our "+
 					"blockchain so not requesting anything else from them. Our block "+
@@ -650,10 +624,6 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 				return
 			}
 
-			// At this point, we have verified that the peer's tip is in our main
-			// header chain. This implies that any blocks we would request from
-			// them should be available as long as they don't exceed the peer's
-			// tip height.
 			blockTip := srv.blockchain.blockTip()
 			glog.Debugf("Server._handleHeaderBundle: *Downloading* blocks starting at "+
 				"block tip %v out of %d from peer %v",
@@ -662,23 +632,12 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 			return
 		}
 
-		// If we get here it means we have all the headers and blocks we need
-		// so there's nothing more to do.
 		glog.Debugf("Server._handleHeaderBundle: Tip is up-to-date so no "+
 			"need to send anything. Our block tip: %v, their tip: %v:%d, Peer: %v",
 			srv.blockchain.blockTip().Header, msg.TipHash, msg.TipHeight, pp)
 		return
 	}
 
-	// If we get here it means the peer sent us a full header bundle where at
-	// least one of the headers contained in the bundle was new to us. When
-	// this happens it means the peer likely has more headers for us to process
-	// so follow up with another GetHeaders request. Set the block locator for
-	// this request using the node corresponding to the last header in this
-	// message. Not doing this and using our header tip instead, for example,
-	// would result in us not being able to switch away from our current chain
-	// even if the peer has a long fork with more work than our current header
-	// chain.
 	lastHash, _ := msg.Headers[len(msg.Headers)-1].Hash()
 	locator, err := srv.blockchain.HeaderLocatorWithNodeHash(lastHash)
 	if err != nil {
