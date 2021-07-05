@@ -327,15 +327,6 @@ func NewServer(
 		_stallTimeoutSeconds, _minFeeRateNanosPerKB,
 		_incomingMessages, srv)
 
-	// Create a BitcoinManager so that transactions that exchange BitClout for Bitcoin
-	// can be properly validated.
-	_bitcoinManager, err := NewBitcoinManager(
-		_db, _params, timesource, _bitcoinDataDir, _incomingMessages,
-		_bitcoinConnectPeer)
-	if err != nil {
-		return nil, errors.Wrapf(err, "NewServer: Problem initializing BitcoinManager")
-	}
-
 	// Set up the blockchain data structure. This is responsible for accepting new
 	// blocks, keeping track of the best chain, and keeping all of that state up
 	// to date on disk.
@@ -350,7 +341,7 @@ func NewServer(
 	_chain, err := NewBlockchain(
 		_trustedBlockProducerPublicKeys,
 		_trustedBlockProducerStartHeight,
-		_params, timesource, _db, _bitcoinManager, srv)
+		_params, timesource, _db, nil, srv)
 	if err != nil {
 		return nil, errors.Wrapf(err, "NewServer: Problem initializing blockchain")
 	}
@@ -398,7 +389,7 @@ func NewServer(
 			_minBlockUpdateIntervalSeconds, _maxBlockTemplatesToCache,
 			_blockProducerSeed,
 			_mempool, _chain,
-			_bitcoinManager, _params)
+			nil, _params)
 		if err != nil {
 			panic(err)
 		}
@@ -420,7 +411,6 @@ func NewServer(
 	// Set all the fields on the Server object.
 	srv.cmgr = _cmgr
 	srv.blockchain = _chain
-	srv.bitcoinManager = _bitcoinManager
 	srv.mempool = _mempool
 	srv.miner = _miner
 	srv.blockProducer = _blockProducer

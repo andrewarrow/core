@@ -188,7 +188,7 @@ var (
 	//  <prefix, DiamondReceiverPKID [33]byte, DiamondSenderPKID [33]byte, posthash> -> <gob-encoded DiamondEntry>
 	//  <prefix, DiamondSenderPKID [33]byte, DiamondReceiverPKID [33]byte, posthash> -> <gob-encoded DiamondEntry>
 	_PrefixDiamondReceiverPKIDDiamondSenderPKIDPostHash = []byte{41}
-	_PrefixDiamondSenderPKIDDiamondReceiverPKIDPostHash  = []byte{43}
+	_PrefixDiamondSenderPKIDDiamondReceiverPKIDPostHash = []byte{43}
 
 	// Public keys that have been restricted from signing blocks.
 	// <prefix, ForbiddenPublicKey [33]byte> -> <>
@@ -2218,90 +2218,50 @@ func _prefixForChainType(chainType ChainType) []byte {
 	return prefix
 }
 
+var BestHash *BlockHash
+
 func DbGetBestHash(handle *badger.DB, chainType ChainType) *BlockHash {
-	prefix := _prefixForChainType(chainType)
-	if len(prefix) == 0 {
-		glog.Errorf("DbGetBestHash: Problem getting prefix for ChainType: %d", chainType)
-		return nil
-	}
-	return _getBlockHashForPrefix(handle, prefix)
+	return BestHash
 }
 
 func PutBestHashWithTxn(txn *badger.Txn, bh *BlockHash, chainType ChainType) error {
-	prefix := _prefixForChainType(chainType)
-	if len(prefix) == 0 {
-		glog.Errorf("PutBestHashWithTxn: Problem getting prefix for ChainType: %d", chainType)
-		return nil
-	}
-	return txn.Set(prefix, bh[:])
+	BestHash = bh
+	return nil
 }
 
 func PutBestHash(bh *BlockHash, handle *badger.DB, chainType ChainType) error {
-	return handle.Update(func(txn *badger.Txn) error {
-		return PutBestHashWithTxn(txn, bh, chainType)
-	})
+	return PutBestHashWithTxn(nil, bh, chainType)
 }
 
-func BlockHashToBlockKey(blockHash *BlockHash) []byte {
-	return append(append([]byte{}, _PrefixBlockHashToBlock...), blockHash[:]...)
+func BlockHashToBlockKey(blockHash *BlockHash) BlockHash {
+	return *blockHash
 }
 
 func GetBlockWithTxn(txn *badger.Txn, blockHash *BlockHash) *MsgBitCloutBlock {
 	hashKey := BlockHashToBlockKey(blockHash)
 	var blockRet *MsgBitCloutBlock
 
-	item, err := txn.Get(hashKey)
-	if err != nil {
-		return nil
-	}
+	valBytes := BlocksByKey[hashKey]
 
-	err = item.Value(func(valBytes []byte) error {
-		ret := NewMessage(MsgTypeBlock).(*MsgBitCloutBlock)
-		if err := ret.FromBytes(valBytes); err != nil {
-			return err
-		}
-		blockRet = ret
-
-		return nil
-	})
-	if err != nil {
-		return nil
-	}
-
+	ret := NewMessage(MsgTypeBlock).(*MsgBitCloutBlock)
+	ret.FromBytes(valBytes)
+	blockRet = ret
 	return blockRet
 }
 
 func GetBlock(blockHash *BlockHash, handle *badger.DB) (*MsgBitCloutBlock, error) {
 	hashKey := BlockHashToBlockKey(blockHash)
+	valBytes := BlocksByKey[hashKey]
 	var blockRet *MsgBitCloutBlock
-	err := handle.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(hashKey)
-		if err != nil {
-			return err
-		}
 
-		err = item.Value(func(valBytes []byte) error {
-			ret := NewMessage(MsgTypeBlock).(*MsgBitCloutBlock)
-			if err := ret.FromBytes(valBytes); err != nil {
-				return err
-			}
-			blockRet = ret
-
-			return nil
-		})
-
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
+	ret := NewMessage(MsgTypeBlock).(*MsgBitCloutBlock)
+	ret.FromBytes(valBytes)
+	blockRet = ret
 
 	return blockRet, nil
 }
+
+var BlocksByKey = map[BlockHash][]byte{}
 
 func PutBlockWithTxn(txn *badger.Txn, bitcloutBlock *MsgBitCloutBlock) error {
 	if bitcloutBlock.Header == nil {
@@ -2313,31 +2273,19 @@ func PutBlockWithTxn(txn *badger.Txn, bitcloutBlock *MsgBitCloutBlock) error {
 	}
 	blockKey := BlockHashToBlockKey(blockHash)
 	data, err := bitcloutBlock.ToBytes(false)
+
 	if err != nil {
 		return err
 	}
-	// First check to see if the block is already in the db.
-	if _, err := txn.Get(blockKey); err == nil {
-		// err == nil means the block already exists in the db so
-		// no need to store it.
+	if len(BlocksByKey[blockKey]) > 0 {
 		return nil
 	}
-	// If the block is not in the db then set it.
-	if err := txn.Set(blockKey, data); err != nil {
-		return err
-	}
+	BlocksByKey[blockKey] = data
 	return nil
 }
 
 func PutBlock(bitcloutBlock *MsgBitCloutBlock, handle *badger.DB) error {
-	err := handle.Update(func(txn *badger.Txn) error {
-		return PutBlockWithTxn(txn, bitcloutBlock)
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return PutBlockWithTxn(nil, bitcloutBlock)
 }
 
 func _heightHashToNodeIndexPrefix(bitcoinNodes bool) []byte {
@@ -2444,13 +2392,7 @@ func DbBulkDeleteHeightHashToNodeInfo(
 	return nil
 }
 
-// InitDbWithGenesisBlock initializes the database to contain only the genesis
-// block.
 func InitDbWithBitCloutGenesisBlock(params *BitCloutParams, handle *badger.DB) error {
-	// Construct a node for the genesis block. Its height is zero and it has
-	// no parents. Its difficulty should be set to the initial
-	// difficulty specified in the parameters and it should be assumed to be
-	// valid and stored by the end of this function.
 	genesisBlock := params.GenesisBlock
 	diffTarget := NewBlockHash(params.MinDifficultyTargetHex)
 	blockHash := NewBlockHash(params.GenesisBlockHashHex)
@@ -2461,14 +2403,9 @@ func InitDbWithBitCloutGenesisBlock(params *BitCloutParams, handle *badger.DB) e
 		diffTarget,
 		BytesToBigint(ExpectedWorkForBlockHash(diffTarget)[:]), // CumWork
 		genesisBlock.Header, // Header
-		StatusHeaderValidated|StatusBlockProcessed|StatusBlockStored|StatusBlockValidated, // Status
+		StatusHeaderValidated|StatusBlockProcessed|StatusBlockStored|StatusBlockValidated,
 	)
 
-	// Set the fields in the db to reflect the current state of our chain.
-	//
-	// Set the best hash to the genesis block in the db since its the only node
-	// we're currently aware of. Set it for both the header chain and the block
-	// chain.
 	if err := PutBestHash(blockHash, handle, ChainTypeBitCloutBlock); err != nil {
 		return errors.Wrapf(err, "InitDbWithGenesisBlock: Problem putting genesis block hash into db for block chain")
 	}

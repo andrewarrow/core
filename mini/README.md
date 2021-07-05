@@ -14,7 +14,7 @@ mini is a fork of core for this use case:
 
 The message last posted to bitclout.com's global feed is used to find the new genisis block. We trace that tx back to it's block. 
 
-When mini starts running it looks for blocks AFTER this one. If we find peers telling us about transactions from BEFORE this block, we ignore those.
+When mini starts running it looks for blocks AT OR AFTER this one. If we find peers telling us about transactions from BEFORE this block, we ignore those.
 
 We have no badgerdb so we keep track in memory our inventory.
 

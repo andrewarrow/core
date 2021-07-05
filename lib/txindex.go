@@ -3,10 +3,11 @@ package lib
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/dgraph-io/badger/v3"
 	"path/filepath"
 	"reflect"
 	"time"
+
+	"github.com/dgraph-io/badger/v3"
 
 	chainlib "github.com/btcsuite/btcd/blockchain"
 	"github.com/golang/glog"
@@ -317,9 +318,10 @@ func (txi *TXIndex) Update() error {
 			if err := DeleteUtxoOperationsForBlockWithTxn(txn, blockToDetach.Hash); err != nil {
 				return fmt.Errorf("Update: Error deleting UtxoOperations 1 for block %v, %v", blockToDetach.Hash, err)
 			}
-			if err := txn.Delete(BlockHashToBlockKey(blockToDetach.Hash)); err != nil {
-				return fmt.Errorf("Update: Error deleting UtxoOperations 2 for block %v %v", blockToDetach.Hash, err)
-			}
+			// TODO look at delete
+			//if err := txn.Delete(BlockHashToBlockKey(blockToDetach.Hash)); err != nil {
+			//	return fmt.Errorf("Update: Error deleting UtxoOperations 2 for block %v %v", blockToDetach.Hash, err)
+			//}
 			return nil
 		})
 		if err != nil {
