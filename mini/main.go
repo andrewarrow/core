@@ -76,16 +76,6 @@ func main() {
 
 }
 
-func PutBestHash(bh *BlockHash) {
-	// prefix 3
-	fmt.Println("PutBestHash")
-	key := "3"
-	b, _ := json.Marshal(bh)
-	value := string(b)
-	fmt.Println(key)
-	fmt.Println(value)
-}
-
 func PutBlock(bitcloutBlock *MsgBitCloutBlock) {
 	b, _ := json.Marshal(bitcloutBlock.Header)
 	key := string(b)

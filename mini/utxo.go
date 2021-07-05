@@ -8,12 +8,8 @@ import (
 
 func NewUtxoView() *UtxoView {
 
-	aMerkleRoot := BlockHash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
-		1, 2}
 	view := UtxoView{
-		TipHash: &aMerkleRoot, //DbGetBestHash(),
+		TipHash: DbGetBestHash(),
 	}
 	view._ResetViewMappingsAfterFlush()
 
