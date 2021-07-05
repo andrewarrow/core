@@ -2105,11 +2105,11 @@ func (bm *BitcoinManager) startSync() {
 func (bm *BitcoinManager) Start() {
 	glog.Debugf("BitcoinManager.Start: Starting BitcoinManager...")
 	// Start the addrmgr.
-	bm.addrMgr.Start()
+	//bm.addrMgr.Start()
 
 	// Populate the addrMgr with useful seeds.
-	bm.AddSeeds()
+	//bm.AddSeeds()
 
 	// Setup a sync peer that we can use to update our header chain.
-	bm.startSync()
+	//bm.startSync()
 }

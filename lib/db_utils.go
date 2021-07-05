@@ -1714,10 +1714,6 @@ func DbGetNanosPurchasedWithTxn(txn *badger.Txn) uint64 {
 
 func DbGetNanosPurchased(handle *badger.DB) uint64 {
 	var nanosPurchased uint64
-	handle.View(func(txn *badger.Txn) error {
-		nanosPurchased = DbGetNanosPurchasedWithTxn(txn)
-		return nil
-	})
 
 	return nanosPurchased
 }
@@ -1762,10 +1758,6 @@ func DbGetGlobalParamsEntryWithTxn(txn *badger.Txn) *GlobalParamsEntry {
 
 func DbGetGlobalParamsEntry(handle *badger.DB) *GlobalParamsEntry {
 	var globalParamsEntry *GlobalParamsEntry
-	handle.View(func(txn *badger.Txn) error {
-		globalParamsEntry = DbGetGlobalParamsEntryWithTxn(txn)
-		return nil
-	})
 	return globalParamsEntry
 }
 
@@ -1790,10 +1782,6 @@ func DbGetUSDCentsPerBitcoinExchangeRateWithTxn(txn *badger.Txn) uint64 {
 
 func DbGetUSDCentsPerBitcoinExchangeRate(handle *badger.DB) uint64 {
 	var usdCentsPerBitcoinExchangeRate uint64
-	handle.View(func(txn *badger.Txn) error {
-		usdCentsPerBitcoinExchangeRate = DbGetUSDCentsPerBitcoinExchangeRateWithTxn(txn)
-		return nil
-	})
 
 	return usdCentsPerBitcoinExchangeRate
 }
@@ -1815,11 +1803,6 @@ func GetUtxoNumEntriesWithTxn(txn *badger.Txn) uint64 {
 
 func GetUtxoNumEntries(handle *badger.DB) uint64 {
 	var numEntries uint64
-	handle.View(func(txn *badger.Txn) error {
-		numEntries = GetUtxoNumEntriesWithTxn(txn)
-
-		return nil
-	})
 
 	return numEntries
 }
