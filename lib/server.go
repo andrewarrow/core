@@ -542,6 +542,9 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 			StatusHeaderValidated)
 		fmt.Println(newNode, msg.TipHeight, headerReceived.Height)
 		list = append(list, newNode)
+		if len(list) > 5 {
+			break
+		}
 	}
 
 	hashList := []*BlockHash{}
@@ -1127,6 +1130,12 @@ func (srv *Server) _logAndDisconnectPeer(pp *Peer, blockMsg *MsgBitCloutBlock, s
 }
 
 func (srv *Server) _handleBlock(pp *Peer, blk *MsgBitCloutBlock) {
+	for _, tx := range blk.Txns {
+		fmt.Println(tx.TxnMeta.GetTxnType())
+	}
+}
+
+func (srv *Server) old_handleBlock(pp *Peer, blk *MsgBitCloutBlock) {
 	glog.Infof("Server._handleBlock: Received block ( %v / %v ) from Peer %v",
 		blk.Header.Height, srv.blockchain.headerTip().Height, pp)
 
