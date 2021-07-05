@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 )
@@ -72,31 +71,9 @@ func main() {
 
 		utxoView._addUtxo(&utxoEntry)
 	}
-	fmt.Println(utxoView)
 
-}
-
-func PutBlock(bitcloutBlock *MsgBitCloutBlock) {
-	b, _ := json.Marshal(bitcloutBlock.Header)
-	key := string(b)
-	b, _ = json.Marshal(bitcloutBlock)
-	value := string(b)
-	fmt.Println("PutBlock")
-	fmt.Println(key)
-	fmt.Println(value)
-}
-
-func PutHeightHashToNodeInfo(node *BlockNode) {
-	m := map[string]interface{}{}
-	m["Height"] = node.Height
-	m["Hash"] = node.Hash
-	b, _ := json.Marshal(m)
-	key := string(b)
-	b, _ = json.Marshal(node)
-	value := string(b)
-	fmt.Println("PutHeightHashToNodeInfo")
-	fmt.Println(key)
-	fmt.Println(value)
+	fmt.Println("call")
+	utxoView.FlushToDb()
 }
 
 type MsgBitCloutBlock struct {

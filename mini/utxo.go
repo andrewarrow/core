@@ -76,6 +76,13 @@ func (bav *UtxoView) _setUtxoMappings(utxoEntry *UtxoEntry) error {
 	return nil
 }
 
+func (bav *UtxoView) FlushToDb() {
+	for utxoKeyIter, utxoEntry := range bav.UtxoKeyToUtxoEntry {
+		fmt.Println("a", utxoKeyIter, utxoEntry)
+		//TODO
+	}
+}
+
 type UtxoOperation struct {
 	Type                   OperationType
 	Entry                  *UtxoEntry
