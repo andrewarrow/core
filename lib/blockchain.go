@@ -626,37 +626,12 @@ func (bc *Blockchain) LocateBestBlockChainHeaders(locator []*BlockHash, stopHash
 	return headers
 }
 
-// LatestLocator returns a block locator for the passed block node. The passed
-// node can be nil in which case the block locator for the current tip
-// associated with the view will be returned.
-//
-// BlockLocator is used to help locate a specific block.  The algorithm for
-// building the block locator is to add the hashes in reverse order until
-// the genesis block is reached.  In order to keep the list of locator hashes
-// to a reasonable number of entries, first the most recent previous 12 block
-// hashes are added, then the step is doubled each loop iteration to
-// exponentially decrease the number of hashes as a function of the distance
-// from the block being located.
-//
-// For example, assume a block chain with a side chain as depicted below:
-// 	genesis -> 1 -> 2 -> ... -> 15 -> 16  -> 17  -> 18
-// 	                              \-> 16a -> 17a
-//
-// The block locator for block 17a would be the hashes of blocks:
-// [17a 16a 15 14 13 12 11 10 9 8 7 6 4 genesis]
-//
-// Caller is responsible for acquiring the ChainLock before calling this function.
 func (bc *Blockchain) LatestLocator(tip *BlockNode) []*BlockHash {
 
-	// Calculate the max number of entries that will ultimately be in the
-	// block locator. See the description of the algorithm for how these
-	// numbers are derived.
 	var maxEntries uint8
 	if tip.Header.Height <= 12 {
 		maxEntries = uint8(tip.Header.Height) + 1
 	} else {
-		// Requested hash itself + previous 10 entries + genesis block.
-		// Then floor(log2(height-10)) entries for the skip portion.
 		adjustedHeight := uint32(tip.Header.Height) - 10
 		maxEntries = 12 + fastLog2Floor(adjustedHeight)
 	}
@@ -666,30 +641,20 @@ func (bc *Blockchain) LatestLocator(tip *BlockNode) []*BlockHash {
 	for tip != nil {
 		locator = append(locator, tip.Hash)
 
-		// Nothing more to add once the genesis block has been added.
 		if tip.Header.Height == 0 {
 			break
 		}
-
-		// Calculate height of previous node to include ensuring the
-		// final node is the genesis block.
 		height := int32(tip.Header.Height) - step
 		if height < 0 {
 			height = 0
 		}
 
-		// When the node is in the current chain view, all of its
-		// ancestors must be too, so use a much faster O(1) lookup in
-		// that case.  Otherwise, fall back to walking backwards through
-		// the nodes of the other chain to the correct ancestor.
 		if _, exists := bc.bestHeaderChainMap[*tip.Hash]; exists {
 			tip = bc.bestHeaderChain[height]
 		} else {
 			tip = tip.Ancestor(uint32(height))
 		}
 
-		// Once 11 entries have been included, start doubling the
-		// distance between included hashes.
 		if len(locator) > 10 {
 			step *= 2
 		}

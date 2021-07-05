@@ -523,6 +523,14 @@ func (srv *Server) GetBlocks(pp *Peer, maxHeight int) {
 		pp)
 }
 
+var blockNodes = map[BlockHash]*BlockNode{}
+
+func SimpleHeaderLocatorWithNodeHash(hash *BlockHash) []*BlockHash {
+	//node := blockNodes[*hash]
+	list := []*BlockHash{}
+	return list
+}
+
 func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 	aMerkleRoot := BlockHash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
@@ -541,21 +549,28 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 			headerReceived,
 			StatusHeaderValidated)
 		fmt.Println(newNode, msg.TipHeight, headerReceived.Height)
+		blockNodes[*headerHash] = newNode
 		list = append(list, newNode)
-		if len(list) > 5 {
-			break
-		}
 	}
 
 	hashList := []*BlockHash{}
 	for _, node := range list {
 		hashList = append(hashList, node.Hash)
-
 		pp.requestedBlocks[*node.Hash] = true
+		if len(hashList) > 50 {
+			break
+		}
 	}
 	pp.AddBitCloutMessage(&MsgBitCloutGetBlocks{
 		HashList: hashList,
 	}, false)
+
+	//lastHash, _ := msg.Headers[len(msg.Headers)-1].Hash()
+	//locator := SimpleHeaderLocatorWithNodeHash(lastHash)
+	//pp.AddBitCloutMessage(&MsgBitCloutGetHeaders{
+	//	StopHash:     &BlockHash{},
+	//	BlockLocator: locator,
+	//}, false)
 }
 
 func (srv *Server) old_handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
@@ -1131,7 +1146,7 @@ func (srv *Server) _logAndDisconnectPeer(pp *Peer, blockMsg *MsgBitCloutBlock, s
 
 func (srv *Server) _handleBlock(pp *Peer, blk *MsgBitCloutBlock) {
 	for _, tx := range blk.Txns {
-		fmt.Println(tx.TxnMeta.GetTxnType())
+		fmt.Println("_handleBlock", tx.TxnMeta.GetTxnType())
 	}
 }
 
