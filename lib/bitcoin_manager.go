@@ -973,10 +973,11 @@ func (bm *BitcoinManager) GetBitcoinBurnWorkBlocks(blockHeight uint32) int64 {
 }
 
 func (bm *BitcoinManager) IsCurrent(considerCumWork bool) bool {
-	bm.BitcoinHeaderIndexLock.RLock()
-	defer bm.BitcoinHeaderIndexLock.RUnlock()
+	//bm.BitcoinHeaderIndexLock.RLock()
+	//defer bm.BitcoinHeaderIndexLock.RUnlock()
 
-	return bm._isCurrent(considerCumWork)
+	//return bm._isCurrent(considerCumWork)
+	return true
 }
 
 func (bm *BitcoinManager) _isCurrent(considerCumWork bool) bool {

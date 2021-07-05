@@ -7,8 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/btcsuite/btcutil"
-	"github.com/gernest/mention"
 	"log"
 	"math"
 	"os"
@@ -17,6 +15,9 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/btcsuite/btcutil"
+	"github.com/gernest/mention"
 
 	"github.com/dgraph-io/badger/v3"
 
@@ -2334,11 +2335,11 @@ func NewBitCloutMempool(_bc *Blockchain, _rateLimitFeerateNanosPerKB uint64,
 	// If the caller wants the readOnlyUtxoView to update periodically then kick
 	// that off here.
 	if newPool.generateReadOnlyUtxoView {
-		newPool.StartReadOnlyUtxoViewRegenerator()
+		//newPool.StartReadOnlyUtxoViewRegenerator()
 	}
 
 	if newPool.mempoolDir != "" {
-		newPool.StartMempoolDBDumper()
+		//newPool.StartMempoolDBDumper()
 	}
 
 	return newPool
