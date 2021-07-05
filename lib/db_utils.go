@@ -2056,7 +2056,9 @@ func GetUtxoOperationsForBlock(handle *badger.DB, blockHash *BlockHash) ([][]*Ut
 }
 
 func PutUtxoOperationsForBlockWithTxn(txn *badger.Txn, blockHash *BlockHash, utxoOpsForBlock [][]*UtxoOperation) error {
-	return txn.Set(_DbKeyForUtxoOps(blockHash), _EncodeUtxoOperations(utxoOpsForBlock))
+	//TODO PutUtxoOperationsForBlockWithTxn
+	//return txn.Set(_DbKeyForUtxoOps(blockHash), _EncodeUtxoOperations(utxoOpsForBlock))
+	return nil
 }
 
 func DeleteUtxoOperationsForBlockWithTxn(txn *badger.Txn, blockHash *BlockHash) error {

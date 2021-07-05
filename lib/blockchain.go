@@ -1763,42 +1763,13 @@ func (bc *Blockchain) ProcessBlock(bitcloutBlock *MsgBitCloutBlock, verifySignat
 		// status flag on the block to indicate that and write the status to disk.
 		nodeToValidate.Status |= StatusBlockValidated
 
-		// Now that we have a valid block that we know is connecting to the tip,
-		// update our data structures to actually make this connection. Do this
-		// in a transaction so that it is atomic.
-		err = bc.db.Update(func(txn *badger.Txn) error {
-			// This will update the node's status.
-			if err := PutHeightHashToNodeInfoWithTxn(txn, nodeToValidate, false /*bitcoinNodes*/); err != nil {
-				return errors.Wrapf(
-					err, "ProcessBlock: Problem calling PutHeightHashToNodeInfo after validation")
-			}
+		PutHeightHashToNodeInfoWithTxn(nil, nodeToValidate, false)
 
-			// Set the best node hash to this one. Note the header chain should already
-			// be fully aware of this block so we shouldn't update it here.
-			if err := PutBestHashWithTxn(txn, blockHash, ChainTypeBitCloutBlock); err != nil {
-				return err
-			}
+		PutBestHashWithTxn(nil, blockHash, ChainTypeBitCloutBlock)
 
-			// Write the modified utxo set to the view.
-			if err := utxoView.FlushToDbWithTxn(txn); err != nil {
-				return errors.Wrapf(err, "ProcessBlock: Problem writing utxo view to db on simple add to tip")
-			}
+		utxoView.FlushToDbWithTxn(nil)
+		PutUtxoOperationsForBlockWithTxn(nil, blockHash, utxoOpsForBlock)
 
-			// Write the utxo operations for this block to the db so we can have the
-			// ability to roll it back in the future.
-			if err := PutUtxoOperationsForBlockWithTxn(txn, blockHash, utxoOpsForBlock); err != nil {
-				return errors.Wrapf(err, "ProcessBlock: Problem writing utxo operations to db on simple add to tip")
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return false, false, errors.Wrapf(err, "ProcessBlock: Problem writing block info to db on simple add to tip")
-		}
-
-		// Now that we've set the best chain in the db, update our in-memory data
-		// structure to reflect this. Do a quick check first to make sure it's consistent.
 		lastIndex := len(bc.bestChain) - 1
 		bestChainHash := bc.bestChain[lastIndex].Hash
 

@@ -393,9 +393,10 @@ func NewServer(
 		if err != nil {
 			panic(err)
 		}
-		go func() {
-			_blockProducer.Start()
-		}()
+
+		//go func() {
+		//	_blockProducer.Start()
+		//}()
 	}
 
 	// TODO(miner): Make the miner its own binary and pull it out of here.
@@ -403,16 +404,16 @@ func NewServer(
 	if _numMiningThreads <= 0 {
 		_numMiningThreads = uint64(runtime.NumCPU())
 	}
-	_miner, err := NewBitCloutMiner(_minerPublicKeys, uint32(_numMiningThreads), _blockProducer, _params)
-	if err != nil {
-		return nil, errors.Wrapf(err, "NewServer: ")
-	}
+	//_miner, err := NewBitCloutMiner(_minerPublicKeys, uint32(_numMiningThreads), _blockProducer, _params)
+	//if err != nil {
+	//	return nil, errors.Wrapf(err, "NewServer: ")
+	//}
 
 	// Set all the fields on the Server object.
 	srv.cmgr = _cmgr
 	srv.blockchain = _chain
 	srv.mempool = _mempool
-	srv.miner = _miner
+	srv.miner = nil
 	srv.blockProducer = _blockProducer
 	srv.incomingMessages = _incomingMessages
 	// Make this hold a multiple of what we hold for individual peers.
