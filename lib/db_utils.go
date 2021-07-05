@@ -2297,49 +2297,36 @@ func _heightHashToNodeIndexPrefix(bitcoinNodes bool) []byte {
 	return prefix
 }
 
-func _heightHashToNodeIndexKey(height uint32, hash *BlockHash, bitcoinNodes bool) []byte {
-	prefix := _heightHashToNodeIndexPrefix(bitcoinNodes)
+func _heightHashToNodeIndexKey(height uint32, hash *BlockHash, bitcoinNodes bool) [36]byte {
+	prefix := []byte{}
 
 	heightBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(heightBytes[:], height)
 	key := append(prefix, heightBytes[:]...)
 	key = append(key, hash[:]...)
+	var b [36]byte
+	copy(b[:], key)
 
-	return key
+	return b
 }
 
 func GetHeightHashToNodeInfoWithTxn(
 	txn *badger.Txn, height uint32, hash *BlockHash, bitcoinNodes bool) *BlockNode {
 
 	key := _heightHashToNodeIndexKey(height, hash, bitcoinNodes)
-	nodeValue, err := txn.Get(key)
-	if err != nil {
-		return nil
-	}
+	nodeBytes := HeightHashToNode[key]
 	var blockNode *BlockNode
-	nodeValue.Value(func(nodeBytes []byte) error {
-		blockNode, err = DeserializeBlockNode(nodeBytes)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return nil
-	}
+	blockNode, _ = DeserializeBlockNode(nodeBytes)
 	return blockNode
 }
 
 func GetHeightHashToNodeInfo(
 	handle *badger.DB, height uint32, hash *BlockHash, bitcoinNodes bool) *BlockNode {
 
-	var blockNode *BlockNode
-	handle.View(func(txn *badger.Txn) error {
-		blockNode = GetHeightHashToNodeInfoWithTxn(txn, height, hash, bitcoinNodes)
-		return nil
-	})
-	return blockNode
+	return GetHeightHashToNodeInfoWithTxn(nil, height, hash, bitcoinNodes)
 }
+
+var HeightHashToNode = map[[36]byte][]byte{}
 
 func PutHeightHashToNodeInfoWithTxn(txn *badger.Txn, node *BlockNode, bitcoinNodes bool) error {
 
@@ -2349,28 +2336,20 @@ func PutHeightHashToNodeInfoWithTxn(txn *badger.Txn, node *BlockNode, bitcoinNod
 		return errors.Wrapf(err, "PutHeightHashToNodeInfoWithTxn: Problem serializing node")
 	}
 
-	if err := txn.Set(key, serializedNode); err != nil {
-		return err
-	}
+	HeightHashToNode[key] = serializedNode
 	return nil
 }
 
 func PutHeightHashToNodeInfo(node *BlockNode, handle *badger.DB, bitcoinNodes bool) error {
-	err := handle.Update(func(txn *badger.Txn) error {
-		return PutHeightHashToNodeInfoWithTxn(txn, node, bitcoinNodes)
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return PutHeightHashToNodeInfoWithTxn(nil, node, bitcoinNodes)
 }
 
 func DbDeleteHeightHashToNodeInfoWithTxn(
 	node *BlockNode, txn *badger.Txn, bitcoinNodes bool) error {
 
-	return txn.Delete(_heightHashToNodeIndexKey(node.Height, node.Hash, bitcoinNodes))
+	//return txn.Delete(_heightHashToNodeIndexKey(node.Height, node.Hash, bitcoinNodes))
+	//TODO delete
+	return nil
 }
 
 func DbBulkDeleteHeightHashToNodeInfo(
