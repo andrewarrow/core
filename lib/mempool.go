@@ -2335,7 +2335,7 @@ func NewBitCloutMempool(_bc *Blockchain, _rateLimitFeerateNanosPerKB uint64,
 	// If the caller wants the readOnlyUtxoView to update periodically then kick
 	// that off here.
 	if newPool.generateReadOnlyUtxoView {
-		//newPool.StartReadOnlyUtxoViewRegenerator()
+		newPool.StartReadOnlyUtxoViewRegenerator()
 	}
 
 	if newPool.mempoolDir != "" {

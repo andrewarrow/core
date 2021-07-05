@@ -543,7 +543,7 @@ func (bitcloutBlockProducer *BitCloutBlockProducer) Start() {
 	for {
 		secondsLeft := float64(bitcloutBlockProducer.minBlockUpdateIntervalSeconds) - time.Since(lastBlockUpdate).Seconds()
 		if !lastBlockUpdate.IsZero() && secondsLeft > 0 {
-			glog.Debugf("Sleeping for %v seconds before producing next block template...", secondsLeft)
+			fmt.Printf("Sleeping for %v seconds before producing next block template...\n", secondsLeft)
 			time.Sleep(time.Duration(math.Ceil(secondsLeft)) * time.Second)
 			continue
 		}

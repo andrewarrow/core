@@ -345,7 +345,7 @@ func NewServer(
 	if err != nil {
 		return nil, errors.Wrapf(err, "NewServer: Problem initializing blockchain")
 	}
-	glog.Debugf("Initialized chain: Best Header Height: %d, Header Hash: %s, Header CumWork: %s, Best Block Height: %d, Block Hash: %s, Block CumWork: %s",
+	fmt.Printf("Initialized chain: Best Header Height: %d, Header Hash: %s, Header CumWork: %s, Best Block Height: %d, Block Hash: %s, Block CumWork: %s\n",
 		_chain.headerTip().Height,
 		hex.EncodeToString(_chain.headerTip().Hash[:]),
 		hex.EncodeToString(BigintToHash(_chain.headerTip().CumWork)[:]),
@@ -1540,8 +1540,8 @@ func (srv *Server) _handlePeerMessages(serverMessage *ServerMessage) {
 func (srv *Server) messageHandler() {
 	for {
 		serverMessage := <-srv.incomingMessages
-		glog.Tracef("Server.messageHandler: Handling message of type %v from Peer %v",
-			serverMessage.Msg.GetMsgType(), serverMessage.Peer)
+		fmt.Printf("Server.messageHandler: Handling message of type %v from Peer\n",
+			serverMessage.Msg.GetMsgType())
 
 		// If the message is an addr message we handle it independent of whether or
 		// not the BitcoinManager is synced.

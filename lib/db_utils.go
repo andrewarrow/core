@@ -1757,8 +1757,8 @@ func DbGetGlobalParamsEntryWithTxn(txn *badger.Txn) *GlobalParamsEntry {
 }
 
 func DbGetGlobalParamsEntry(handle *badger.DB) *GlobalParamsEntry {
-	var globalParamsEntry *GlobalParamsEntry
-	return globalParamsEntry
+	g := GlobalParamsEntry{}
+	return &g
 }
 
 func DbPutUSDCentsPerBitcoinExchangeRateWithTxn(txn *badger.Txn, usdCentsPerBitcoinExchangeRate uint64) error {
@@ -2208,6 +2208,7 @@ func DbGetBestHash(handle *badger.DB, chainType ChainType) *BlockHash {
 }
 
 func PutBestHashWithTxn(txn *badger.Txn, bh *BlockHash, chainType ChainType) error {
+	fmt.Println("PutBestHashWithTxn")
 	BestHash = bh
 	return nil
 }
@@ -2264,6 +2265,7 @@ func PutBlockWithTxn(txn *badger.Txn, bitcloutBlock *MsgBitCloutBlock) error {
 		return nil
 	}
 	BlocksByKey[blockKey] = data
+	fmt.Println("BlocksByKey", len(BlocksByKey))
 	return nil
 }
 
@@ -2320,6 +2322,7 @@ func PutHeightHashToNodeInfoWithTxn(txn *badger.Txn, node *BlockNode, bitcoinNod
 	}
 
 	HeightHashToNode[key] = serializedNode
+	fmt.Println("PutHeightHashToNodeInfoWithTxn", len(HeightHashToNode))
 	return nil
 }
 

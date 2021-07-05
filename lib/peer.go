@@ -147,6 +147,8 @@ func (pp *Peer) AddBitCloutMessage(bitcloutMessage BitCloutMessage, inbound bool
 		return
 	}
 
+	//fmt.Println("AddBitCloutMessage", bitcloutMessage)
+
 	pp.mtxMessageQueue.Lock()
 	defer pp.mtxMessageQueue.Unlock()
 
@@ -482,7 +484,6 @@ func (pp *Peer) HandleInv(msg *MsgBitCloutInv) {
 }
 
 func (pp *Peer) HandleGetBlocks(msg *MsgBitCloutGetBlocks) {
-	fmt.Println("HERE")
 	// Nothing to do if the request is empty.
 	if len(msg.HashList) == 0 {
 		glog.Debugf("Server._handleGetBlocks: Received empty GetBlocks "+
