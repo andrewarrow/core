@@ -1714,28 +1714,8 @@ func (bc *Blockchain) ProcessBlock(bitcloutBlock *MsgBitCloutBlock, verifySignat
 	// Try and store the block and its corresponding node info since it has passed
 	// basic validation.
 	nodeToValidate.Status |= StatusBlockStored
-	err = bc.db.Update(func(txn *badger.Txn) error {
-		// Store the new block in the db under the
-		//   <blockHash> -> <serialized block>
-		// index.
-		if err := PutBlockWithTxn(txn, bitcloutBlock); err != nil {
-			return errors.Wrapf(err, "ProcessBlock: Problem calling PutBlock")
-		}
-
-		// Store the new block's node in our node index in the db under the
-		//   <height uin32, blockhash BlockHash> -> <node info>
-		// index.
-		if err := PutHeightHashToNodeInfoWithTxn(txn, nodeToValidate, false /*bitcoinNodes*/); err != nil {
-			return errors.Wrapf(err,
-				"ProcessBlock: Problem calling PutHeightHashToNodeInfo before validation")
-		}
-
-		return nil
-	})
-	if err != nil {
-		return false, false, errors.Wrapf(
-			err, "ProcessBlock: Problem storing block after basic validation")
-	}
+	PutBlockWithTxn(nil, bitcloutBlock)
+	PutHeightHashToNodeInfoWithTxn(nil, nodeToValidate, false)
 
 	// Now we try and add the block to the main block chain (note that it should
 	// already be on the main header chain if we've made it this far).
