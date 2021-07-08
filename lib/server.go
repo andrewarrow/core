@@ -1148,7 +1148,10 @@ func (srv *Server) _handleBlock(pp *Peer, blk *MsgBitCloutBlock) {
 		if "SUBMIT_POST" != fmt.Sprintf("%v", tx.TxnMeta.GetTxnType()) {
 			continue
 		}
-		fmt.Println("_handleBlock", tx.TxnMeta.GetTxnType())
+		b, _ := tx.TxnMeta.ToBytes(true)
+		spm := SubmitPostMetadata{}
+		spm.FromBytes(b)
+		fmt.Printf("%d %s\n", spm.TimestampNanos/1000000000, string(spm.Body))
 	}
 }
 
