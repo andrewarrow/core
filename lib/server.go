@@ -557,7 +557,7 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 	for _, node := range list {
 		hashList = append(hashList, node.Hash)
 		pp.requestedBlocks[*node.Hash] = true
-		if len(hashList) > 50 {
+		if len(hashList) > 5 {
 			break
 		}
 	}
@@ -565,12 +565,13 @@ func (srv *Server) _handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
 		HashList: hashList,
 	}, false)
 
-	//lastHash, _ := msg.Headers[len(msg.Headers)-1].Hash()
+	lastHash, _ := msg.Headers[len(msg.Headers)-1].Hash()
 	//locator := SimpleHeaderLocatorWithNodeHash(lastHash)
-	//pp.AddBitCloutMessage(&MsgBitCloutGetHeaders{
-	//	StopHash:     &BlockHash{},
-	//	BlockLocator: locator,
-	//}, false)
+	locator := []*BlockHash{lastHash}
+	pp.AddBitCloutMessage(&MsgBitCloutGetHeaders{
+		StopHash:     &BlockHash{},
+		BlockLocator: locator,
+	}, false)
 }
 
 func (srv *Server) old_handleHeaderBundle(pp *Peer, msg *MsgBitCloutHeaderBundle) {
