@@ -1,3 +1,7 @@
+# moving
+
+moving to [https://github.com/andrewarrow/mini](https://github.com/andrewarrow/mini)
+
 # mini
 
 mini is a fork of core for this use case:
